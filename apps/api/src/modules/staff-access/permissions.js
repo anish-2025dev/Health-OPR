@@ -20,6 +20,10 @@ export const PERMISSIONS = Object.freeze({
   // and reporting managers see their direct reports; neither needs these permissions.)
   ATTENDANCE_READ: 'attendance.read',
   ATTENDANCE_MANAGE: 'attendance.manage',
+  // Phase 9b: leave. Employees manage their own leave via their employee link; reporting managers
+  // approve their direct reports.
+  LEAVE_READ: 'leave.read',
+  LEAVE_MANAGE: 'leave.manage',
 });
 
 const ALL = Object.values(PERMISSIONS);
@@ -40,6 +44,7 @@ export const ROLES = Object.freeze({
       P.HOLIDAYS_READ,
       P.EMPLOYEES_READ,
       P.ATTENDANCE_READ,
+      P.LEAVE_READ,
     ],
   },
   hr_manager: {
@@ -53,11 +58,19 @@ export const ROLES = Object.freeze({
       P.EMPLOYEES_MANAGE,
       P.ATTENDANCE_READ,
       P.ATTENDANCE_MANAGE,
+      P.LEAVE_READ,
+      P.LEAVE_MANAGE,
     ],
   },
   payroll_manager: {
     label: 'Payroll manager',
-    permissions: [P.BRANCHES_READ, P.HOLIDAYS_READ, P.EMPLOYEES_READ, P.ATTENDANCE_READ],
+    permissions: [
+      P.BRANCHES_READ,
+      P.HOLIDAYS_READ,
+      P.EMPLOYEES_READ,
+      P.ATTENDANCE_READ,
+      P.LEAVE_READ,
+    ],
   },
   // Department managers see and approve their direct reports through the employee reporting line.
   department_manager: {

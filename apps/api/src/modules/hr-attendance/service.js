@@ -1,4 +1,5 @@
 import { AppError, notFound } from '../../core/errors.js';
+import { approvedLeaveDays } from '../hr-leave/service.js';
 import {
   addDays,
   computeDay,
@@ -375,7 +376,7 @@ export async function buildMonth(trx, { organizationId, emp, policy, month }) {
   const tz = emp.branch.timeZone;
   const { start, end } = monthRange(month);
   const today = todayFor(tz);
-  const [rows, holidays, pending] = await Promise.all([
+  const [rows, holidays, pending, leaveByDate] = await Promise.all([
     trx('attendance_days')
       .where({ organization_id: organizationId, employee_id: emp.id })
       .whereBetween('work_date', [start, end]),
@@ -384,6 +385,7 @@ export async function buildMonth(trx, { organizationId, emp, policy, month }) {
       .where({ organization_id: organizationId, employee_id: emp.id, status: 'pending' })
       .whereBetween('work_date', [start, end])
       .pluck('work_date'),
+    approvedLeaveDays(trx, { organizationId, employee: emp, from: start, to: end }),
   ]);
   const byDate = new Map(rows.map((r) => [r.work_date, r]));
   const holidayByDate = new Map(holidays.map((h) => [h.holiday_date, h.name]));
@@ -417,8 +419,20 @@ export async function buildMonth(trx, { organizationId, emp, policy, month }) {
         isWeekOff,
       };
     }
+    // Approved leave overlays days without attendance (and past absences); a manually edited day or a
+    // day the employee actually worked keeps its status, with the leave shown alongside.
+    const leave = leaveByDate.get(d) ?? null;
+    if (
+      leave &&
+      entry.statusSource === 'computed' &&
+      !entry.checkIn &&
+      ['absent', 'incomplete', 'not_checked_in', 'upcoming'].includes(entry.status)
+    ) {
+      entry = { ...entry, status: 'leave' };
+    }
     days.push({
       ...entry,
+      leave,
       dayOfWeek: dayOfWeek(d),
       holidayName: holidayByDate.get(d) ?? null,
       pendingRegularization: pending.includes(d),
@@ -449,6 +463,12 @@ export async function buildMonth(trx, { organizationId, emp, policy, month }) {
       absent: count('absent'),
       incomplete: count('incomplete'),
       leave: count('leave'),
+      leaveDays: days.reduce((a, d) => a + (d.leave ? d.leave.fraction : 0), 0),
+      paidLeaveDays: days.reduce((a, d) => a + (d.leave?.isPaid ? d.leave.fraction : 0), 0),
+      unpaidLeaveDays: days.reduce(
+        (a, d) => a + (d.leave && !d.leave.isPaid ? d.leave.fraction : 0),
+        0,
+      ),
       weekOff: count('week_off'),
       holiday: count('holiday'),
       late: lateEntries.length,
@@ -499,7 +519,7 @@ export async function buildRegister(trx, { auth, date, branchId, departmentId })
   const employees = await query;
 
   const ids = employees.map((e) => e.id);
-  const [rows, holidays] = await Promise.all([
+  const [rows, holidays, onLeave] = await Promise.all([
     ids.length
       ? trx('attendance_days')
           .where({ organization_id: organizationId, work_date: date })
@@ -508,8 +528,25 @@ export async function buildRegister(trx, { auth, date, branchId, departmentId })
     trx('holidays')
       .where({ organization_id: organizationId, holiday_date: date, is_optional: false })
       .select('branch_id', 'name'),
+    ids.length
+      ? trx('leave_requests as r')
+          .join('leave_types as t', 't.id', 'r.leave_type_id')
+          .where({ 'r.organization_id': organizationId, 'r.status': 'approved' })
+          .whereIn('r.employee_id', ids)
+          .where('r.start_date', '<=', date)
+          .where('r.end_date', '>=', date)
+          .select(
+            'r.employee_id',
+            't.name as type_name',
+            'r.start_date',
+            'r.end_date',
+            'r.start_half',
+            'r.end_half',
+          )
+      : [],
   ]);
   const byEmployee = new Map(rows.map((r) => [r.employee_id, r]));
+  const leaveByEmployee = new Map(onLeave.map((l) => [l.employee_id, l]));
 
   return employees.map((e) => {
     const row = byEmployee.get(e.id);
@@ -537,6 +574,23 @@ export async function buildRegister(trx, { auth, date, branchId, departmentId })
         lateMinutes: 0,
         isLate: false,
         overtimeMinutes: 0,
+      };
+    }
+    const leave = leaveByEmployee.get(e.id);
+    const isOff = day.status === 'holiday' || day.status === 'week_off';
+    if (
+      leave &&
+      !isOff &&
+      !day.checkIn &&
+      ['absent', 'not_checked_in', 'upcoming', 'incomplete'].includes(day.status)
+    ) {
+      const half =
+        (leave.start_half && leave.start_date === date) ||
+        (leave.end_half && leave.end_date === date);
+      day = {
+        ...day,
+        status: 'leave',
+        leave: { typeName: leave.type_name, fraction: half ? 0.5 : 1 },
       };
     }
     return {

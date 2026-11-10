@@ -12,6 +12,8 @@ import { HolidaysPage } from '@/features/org-structure/HolidaysPage';
 import { CompanySetupPage } from '@/features/org-structure/CompanySetupPage';
 import { EmployeeLoginPage } from '@/features/auth/EmployeeLoginPage';
 import { MyAttendancePage } from '@/features/attendance/MyAttendancePage';
+import { MyLeavePage } from '@/features/leave/MyLeavePage';
+import { LeaveAdminPage } from '@/features/leave/LeaveAdminPage';
 import {
   AttendanceDashboardPage,
   AttendanceRegisterPage,
@@ -120,6 +122,24 @@ export function App() {
           }
         />
         <Route path="attendance/employees/:id" element={<EmployeeAttendancePage />} />
+        <Route
+          path="my-leave"
+          element={
+            <RequirePermission allow={(a) => Boolean(a.me.employee)}>
+              <MyLeavePage />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="leave"
+          element={
+            <RequirePermission
+              allow={(a) => a.can('leave.read') || Boolean(a.me.employee?.isManager)}
+            >
+              <LeaveAdminPage />
+            </RequirePermission>
+          }
+        />
         <Route
           path="branches"
           element={

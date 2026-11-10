@@ -15,6 +15,7 @@ import { createSmsSender } from '../../integrations/sms/index.js';
 import { createOtpService } from '../../modules/otp/index.js';
 import { createEmployeeLogin } from '../../modules/authentication/employee-login.js';
 import { attendanceRouter, selfAttendanceRouter } from '../../modules/hr-attendance/routes.js';
+import { leaveRouter, selfLeaveRouter } from '../../modules/hr-leave/routes.js';
 
 /**
  * Versioned API surface mounted at /api/v1. Each module exposes a router that is mounted here.
@@ -54,7 +55,9 @@ export function apiV1Router({ config, checks, db, rateLimitStore, sms, logger })
   router.use('/holidays', authenticate, structure.holidays);
   router.use('/hr/employees', authenticate, employeesRouter({ db }));
   router.use('/attendance', authenticate, attendanceRouter({ db }));
+  router.use('/me/leave', authenticate, selfLeaveRouter({ db }));
   router.use('/me', authenticate, selfAttendanceRouter({ db, otp }));
+  router.use('/leave', authenticate, leaveRouter({ db }));
 
   return router;
 }

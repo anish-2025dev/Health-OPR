@@ -10,7 +10,13 @@ const NAV = [
     show: (a) => !a.me.roles.every((r) => r.role === 'employee'),
   },
   { to: '/my-attendance', label: 'My attendance', show: (a) => Boolean(a.me.employee) },
+  { to: '/my-leave', label: 'My leave', show: (a) => Boolean(a.me.employee) },
   { to: '/attendance', label: 'Attendance', permission: 'attendance.read' },
+  {
+    to: '/leave',
+    label: 'Leave',
+    show: (a) => a.can('leave.read') || Boolean(a.me.employee?.isManager),
+  },
   {
     to: '/attendance/team',
     label: 'My team',

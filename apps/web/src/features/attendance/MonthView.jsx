@@ -110,6 +110,13 @@ export function MonthView({ data, dayActionLabel, onDayAction }) {
                       <td className="py-1.5 pr-3">
                         <div className="flex flex-wrap items-center gap-1">
                           <StatusBadge status={d.status} />
+                          {d.leave && (
+                            <span className="text-xs text-brand-700">
+                              {d.leave.typeName}
+                              {d.leave.fraction === 0.5 ? ' (½)' : ''}
+                              {!d.leave.isPaid ? ' · unpaid' : ''}
+                            </span>
+                          )}
                           {d.statusSource && d.statusSource !== 'computed' && (
                             <span className="text-xs text-slate-400" title={d.manualReason ?? ''}>
                               ({d.statusSource === 'manual' ? 'edited' : 'corrected'})
