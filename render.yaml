@@ -1,5 +1,5 @@
 # Render Blueprint: https://render.com/docs/blueprint-spec
-# Creates the API, the static web app and a private Redis-compatible Key Value instance.
+# Creates the API, the staff/employee web app, the patient website and a private Redis-compatible Key Value instance.
 # PostgreSQL is hosted on Neon (not Render). Paste Neon's connection strings when Render prompts for
 # the `sync: false` variables. Never commit real values to this file.
 
@@ -43,6 +43,9 @@ services:
       # https:// URL of the healthos-web static site, used for CORS
       - key: FRONTEND_URL
         sync: false
+      # https:// URL of the healthos-patient static site (CORS and links sent to patients)
+      - key: PATIENT_SITE_URL
+        sync: false
       - key: REDIS_URL
         fromService:
           type: keyvalue
@@ -64,7 +67,7 @@ services:
   - type: web
     name: healthos-web
     runtime: static
-    buildCommand: npm ci && npm run build
+    buildCommand: npm ci && npm run build --workspace apps/web
     staticPublishPath: apps/web/dist
     autoDeployTrigger: checksPass # deploy only after GitHub CI passes
     buildFilter:
@@ -96,7 +99,8 @@ services:
         value: strict-origin-when-cross-origin
       - path: /*
         name: Permissions-Policy
-        value: camera=(), microphone=(), geolocation=()
+        # Geolocation is allowed for this site only: employees need it to mark attendance.
+        value: camera=(), microphone=(), geolocation=(self)
       - path: /assets/*
         name: Cache-Control
         value: public, max-age=31536000, immutable
@@ -106,6 +110,56 @@ services:
       # Public, baked into the bundle at build time. Same-origin path via the /api rewrite above.
       - key: VITE_API_BASE_URL
         value: /api/v1
+      # Public URL of the patient website, used for the clinic QR code and tracking links.
+      - key: VITE_PATIENT_SITE_URL
+        sync: false
+
+  # ---------------------------------------------------------------- Patient website (static site)
+  # Same codebase built with VITE_APP_SURFACE=patient. Separate address, separate deploy and CDN
+  # traffic; it contains no staff code.
+  - type: web
+    name: healthos-patient
+    runtime: static
+    buildCommand: npm ci && npm run build:patient --workspace apps/web
+    staticPublishPath: apps/web/dist-patient
+    autoDeployTrigger: checksPass
+    buildFilter:
+      paths:
+        - apps/web/**
+        - package.json
+        - package-lock.json
+        - render.yaml
+    routes:
+      # Same-origin API so the patient's HttpOnly sign-in cookie is first-party.
+      - type: rewrite
+        source: /api/*
+        destination: https://healthos-api.onrender.com/api/*
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    headers:
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Referrer-Policy
+        value: no-referrer
+      - path: /*
+        name: Permissions-Policy
+        value: camera=(), microphone=(), geolocation=()
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+    envVars:
+      - key: NODE_VERSION
+        value: '22'
+      - key: VITE_API_BASE_URL
+        value: /api/v1
+      - key: VITE_APP_SURFACE
+        value: patient
 
   # ---------------------------------------------------------------- Redis-compatible cache / queue
   - type: keyvalue

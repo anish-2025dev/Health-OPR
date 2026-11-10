@@ -385,7 +385,11 @@ function Notices() {
 
 function ClinicQr() {
   const { me } = useAuth();
-  const url = `${window.location.origin}/clinic/${me.organization.slug}`;
+  const site = (import.meta.env.VITE_PATIENT_SITE_URL || 'http://localhost:5174').replace(
+    /\/$/,
+    '',
+  );
+  const url = `${site}/clinic/${me.organization.slug}`;
   const [img, setImg] = useState(null);
   useEffect(() => {
     QRCode.toDataURL(url, { width: 320, margin: 2 }).then(setImg, () => setImg(null));
@@ -402,8 +406,10 @@ function ClinicQr() {
         )}
         <div className="space-y-2 text-sm">
           <p>
-            Print this QR code at the reception. Patients scan it, verify their phone number by OTP,
-            and register themselves or family members.
+            Print this QR code at the reception. Patients scan it, sign in to the patient website
+            with their phone number, and register themselves or family members and book
+            appointments. Patients who type the hospital code instead use:{' '}
+            <strong>{me.organization.slug}</strong>
           </p>
           <p className="font-mono text-xs break-all text-slate-600">{url}</p>
           <div className="flex gap-2">

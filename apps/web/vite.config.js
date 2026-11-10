@@ -14,7 +14,8 @@ export default defineConfig({
     alias: { '@': path.resolve(here, 'src') },
   },
   server: {
-    port: 5173,
+    // Staff/employee app on 5173; patient website (VITE_APP_SURFACE=patient) on 5174.
+    port: process.env.VITE_APP_SURFACE === 'patient' ? 5174 : 5173,
     host: true,
     strictPort: true,
     // Same-origin API in development (mirrors the Render /api rewrite), so auth cookies are first-party.

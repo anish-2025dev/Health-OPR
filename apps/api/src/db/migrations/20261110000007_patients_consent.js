@@ -22,7 +22,6 @@ const NEW_TABLES = [
   'consents',
   'patient_duplicate_flags',
   'data_principal_requests',
-  'portal_otp_challenges',
 ];
 
 export async function up(knex) {
@@ -163,19 +162,6 @@ export async function up(knex) {
       CHECK (status NOT IN ('completed', 'rejected') OR resolution IS NOT NULL)
     );
 
-    -- OTPs for the public patient portal (contact phone verification), hashed like employee OTPs.
-    CREATE TABLE portal_otp_challenges (
-      id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-      organization_id   uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-      phone_e164        text NOT NULL,
-      code_hash         text NOT NULL,
-      expires_at        timestamptz NOT NULL,
-      attempts          integer NOT NULL DEFAULT 0,
-      consumed_at       timestamptz,
-      ip                inet,
-      created_at        timestamptz NOT NULL DEFAULT now()
-    );
-    CREATE INDEX portal_otp_lookup_idx ON portal_otp_challenges (organization_id, phone_e164, created_at DESC);
   `);
   for (const table of NEW_TABLES) {
     await knex.raw(`
@@ -190,7 +176,7 @@ export async function up(knex) {
 
 export async function down(knex) {
   await knex.raw(`
-    DROP TABLE IF EXISTS portal_otp_challenges, data_principal_requests, patient_duplicate_flags, consents,
+    DROP TABLE IF EXISTS data_principal_requests, patient_duplicate_flags, consents,
       contact_patient_links, patients, contacts, privacy_notice_versions, patient_settings CASCADE;
     ALTER TABLE organizations DROP COLUMN IF EXISTS next_patient_seq;
   `);

@@ -36,7 +36,6 @@ import {
   RegisterPatientPage,
 } from '@/features/patients/PatientsPages';
 import { PrivacyPage } from '@/features/patients/PrivacyPage';
-import { ClinicPortalPage } from '@/features/portal/ClinicPortalPage';
 import { DoctorsPage } from '@/features/clinic/DoctorsPage';
 import {
   ClinicDashboardPage,
@@ -99,7 +98,6 @@ export function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/employee-login" element={<EmployeeLoginPage />} />
-      <Route path="/clinic/:slug" element={<ClinicPortalPage />} />
       <Route path="/track/:code" element={<TrackPage />} />
       <Route
         path="/queue-display/:doctorId"

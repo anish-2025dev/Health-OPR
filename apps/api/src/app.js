@@ -38,7 +38,7 @@ export function createApp({ config, logger, checks, db, rateLimitStore, sms }) {
   app.use(helmet());
   app.use(
     cors({
-      origin: config.FRONTEND_URL,
+      origin: [config.FRONTEND_URL, config.PATIENT_SITE_URL],
       credentials: true,
     }),
   );

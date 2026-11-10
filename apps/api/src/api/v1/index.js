@@ -22,6 +22,12 @@ import { patientsRouter } from '../../modules/patients/routes.js';
 import { privacyRouter } from '../../modules/patients/privacy.routes.js';
 import { portalRouter } from '../../modules/patients/portal.routes.js';
 import {
+  authenticatePatient as authenticatePatientMiddleware,
+  createPatientTokens,
+  patientAccountRouter,
+  patientAuthRouter,
+} from '../../modules/patient-accounts/index.js';
+import {
   appointmentsRouter,
   doctorsRouter,
   queueRouter,
@@ -82,9 +88,22 @@ export function apiV1Router({ config, checks, db, rateLimitStore, sms, logger })
   // Patient's live queue link (token, position and estimate only).
   router.use('/public/track', trackingRouter({ db, rateLimitStore: limiterStore }));
   // Public clinic portal (QR landing page): no staff login; uses its own phone-verified token.
+  const patientTokens = createPatientTokens(config);
+  const authenticatePatient = authenticatePatientMiddleware({ db, tokens: patientTokens });
+  router.use(
+    '/patient-auth',
+    patientAuthRouter({
+      db,
+      config,
+      sms: smsSender,
+      tokens: patientTokens,
+      rateLimitStore: limiterStore,
+    }),
+  );
+  router.use('/patient', patientAccountRouter({ db, authenticate: authenticatePatient }));
   router.use(
     '/public/clinics',
-    portalRouter({ db, config, sms: smsSender, rateLimitStore: limiterStore }),
+    portalRouter({ db, rateLimitStore: limiterStore, authenticatePatient }),
   );
 
   return router;

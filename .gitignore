@@ -29,3 +29,4 @@ Thumbs.db
 # Local data dumps: never commit patient or employee data
 *.sql.gz
 *.dump
+dist-patient/

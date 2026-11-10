@@ -8,7 +8,9 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "dev:patient": "VITE_APP_SURFACE=patient vite",
+    "build:patient": "VITE_APP_SURFACE=patient vite build --outDir dist-patient"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.5",

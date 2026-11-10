@@ -35,6 +35,9 @@ const schema = z
     PORT: z.coerce.number().int().positive().optional(),
     API_PORT: z.coerce.number().int().positive().default(4000),
     FRONTEND_URL: z.string().url().default('http://localhost:5173'),
+    // Patient website (separate deployment). Used for CORS and for links sent to patients.
+    PATIENT_SITE_URL: z.string().url().default('http://localhost:5174'),
+    PATIENT_SESSION_DAYS: z.coerce.number().int().min(1).max(180).default(30),
     ACCESS_TOKEN_EXPIRE_MINUTES: z.coerce.number().int().positive().default(15),
     REFRESH_TOKEN_EXPIRE_DAYS: z.coerce.number().int().positive().default(14),
     LOG_LEVEL: z
@@ -71,6 +74,13 @@ const schema = z
         code: 'custom',
         path: ['FRONTEND_URL'],
         message: 'must be the https:// URL of the deployed web app in staging/production',
+      });
+    }
+    if (!env.PATIENT_SITE_URL.startsWith('https://')) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['PATIENT_SITE_URL'],
+        message: 'must be the https:// URL of the deployed patient website in staging/production',
       });
     }
   })

@@ -1,14 +1,15 @@
-import { createHmac, randomBytes, randomInt, randomUUID, timingSafeEqual } from 'node:crypto';
 import { Router } from 'express';
-import { SignJWT, jwtVerify } from 'jose';
 import { z } from 'zod';
 import { validate } from '../../core/validate.js';
 import { isUuid, withSystem, withTenant } from '../../core/db.js';
-import { AppError, notFound, unauthorized } from '../../core/errors.js';
-import { maskMobile, mobileSchema } from '../../core/phone.js';
+import { AppError, forbidden, notFound } from '../../core/errors.js';
+import { maskMobile } from '../../core/phone.js';
 import { rateLimit } from '../../core/rate-limit.js';
-import { SmsNotConfiguredError } from '../../integrations/sms/index.js';
 import { recordAudit } from '../audit/index.js';
+import { membership } from '../patient-accounts/index.js';
+import { bookAppointment, loadDoctor, slotsFor, transition } from '../clinic/service.js';
+import { localDate } from '../clinic/calc.js';
+import { addDays } from '../hr-attendance/calc.js';
 import { consentChoicesSchema } from './routes.js';
 import {
   CONSENT_KEYS,
@@ -21,30 +22,20 @@ import {
   presentConsents,
   publishedNotice,
   recordConsents,
-  upsertContact,
 } from './service.js';
 
 /**
- * Public clinic portal (the page behind the clinic's QR code). A person verifies their phone number by
- * OTP and can then register themselves and family members and manage their communication choices.
+ * Patient website: one hospital's area (reached at /clinic/<code> on the patient site).
  *
- * - A portal token proves only that the person controls the phone number. It is a separate token type
- *   (different audience) and can never call staff APIs.
- * - OTP possession is not proof of authority over someone else (spec): family members registered here
- *   stay "pending" until staff authorize the relationship, and pending patients are not bookable.
- * - The portal never reveals other patients' records. Possible duplicates are flagged for staff.
+ * - The person signs in with a patient account (phone + OTP, see patient-accounts) and joins the
+ *   hospital once with its code; the membership links the account to the hospital's verified contact.
+ * - Phone verification is not proof of authority over someone else (spec): family members registered
+ *   here stay "pending" until staff authorize the relationship. Pending patients can't be booked or
+ *   managed here.
+ * - The site never reveals other patients' records. Possible duplicates are flagged for staff.
  */
-const PORTAL_AUDIENCE = 'healthos-patient-portal';
-const ISSUER = 'healthos-api';
-const PORTAL_TOKEN_SECONDS = 30 * 60;
-const OTP_TTL_SECONDS = 300;
-const OTP_MAX_ATTEMPTS = 5;
-const OTP_COOLDOWN_SECONDS = 30;
-const OTP_MAX_PER_WINDOW = 5;
 const DATE = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD');
-
-const invalidCode = () =>
-  new AppError(400, 'OTP_INVALID', 'The code is incorrect or has expired. Request a new code.');
+const IDEMPOTENCY = /^[A-Za-z0-9_-]{8,100}$/;
 
 const registerSchema = z
   .object({
@@ -64,75 +55,44 @@ const registerSchema = z
   })
   .strict();
 
-export function portalRouter({ db, config, sms, rateLimitStore }) {
+export function portalRouter({ db, rateLimitStore, authenticatePatient }) {
   const router = Router();
-  const secret = new TextEncoder().encode(
-    `${config.APP_SECRET_KEY || randomBytes(48).toString('hex')}:portal`,
-  );
-  const otpKey = config.APP_SECRET_KEY || 'development-only-otp-key';
-  const digest = (id, code) => createHmac('sha256', otpKey).update(`${id}:${code}`).digest();
 
   async function findOrg(slug) {
     const org = await withSystem(db, (trx) =>
       trx('organizations').where({ slug, status: 'active' }).first('id', 'name', 'slug'),
     );
-    if (!org) throw notFound('Clinic not found');
+    if (!org) throw notFound('Hospital not found');
     return org;
   }
 
-  const phoneKey = (req) =>
-    String(req.body?.phone ?? '')
-      .replace(/\D/g, '')
-      .slice(-10);
   const byIp = rateLimit({
     store: rateLimitStore,
     prefix: 'portal-ip',
-    limit: 60,
+    limit: 120,
     windowSec: 15 * 60,
     key: (req) => req.ip ?? 'unknown',
   });
-  const requestByPhone = rateLimit({
-    store: rateLimitStore,
-    prefix: 'portal-otp-req',
-    limit: 10,
-    windowSec: 15 * 60,
-    key: phoneKey,
-  });
-  const verifyByPhone = rateLimit({
-    store: rateLimitStore,
-    prefix: 'portal-otp-verify',
-    limit: 25,
-    windowSec: 15 * 60,
-    key: phoneKey,
-  });
 
-  /** Requires a portal token for the clinic in the URL. Sets req.portal = { org, contact }. */
-  async function portalAuth(req, res, next) {
-    try {
-      const [scheme, token] = (req.get('authorization') ?? '').split(' ');
-      if (scheme !== 'Bearer' || !token) throw unauthorized();
-      let payload;
+  /** Signed-in patient who has joined this hospital. Sets req.portal = { org, contact }. */
+  const portalAuth = [
+    authenticatePatient,
+    async (req, res, next) => {
       try {
-        ({ payload } = await jwtVerify(token, secret, {
-          issuer: ISSUER,
-          audience: PORTAL_AUDIENCE,
-          algorithms: ['HS256'],
-        }));
-      } catch {
-        throw unauthorized('Your session has expired. Verify your phone number again.');
+        const org = await findOrg(req.params.slug);
+        const m = await membership(db, req.patient.accountId, org.id);
+        if (!m) throw forbidden('Join this hospital with its code first');
+        const contact = await withTenant(db, org.id, (trx) =>
+          trx('contacts').where({ organization_id: org.id, id: m.contact_id }).first(),
+        );
+        if (!contact) throw forbidden('Join this hospital with its code first');
+        req.portal = { org, contact };
+        next();
+      } catch (err) {
+        next(err);
       }
-      const org = await findOrg(req.params.slug);
-      if (payload.org !== org.id || !isUuid(payload.sub)) throw unauthorized();
-      const contact = await withTenant(db, org.id, (trx) =>
-        trx('contacts').where({ organization_id: org.id, id: payload.sub }).first(),
-      );
-      if (!contact) throw unauthorized();
-      req.portal = { org, contact };
-      next();
-    } catch (err) {
-      next(err);
-    }
-  }
+    },
+  ];
 
   // ------------------------------------------------------------------ clinic landing page
   router.get('/:slug', byIp, async (req, res) => {
@@ -156,119 +116,6 @@ export function portalRouter({ db, config, sms, rateLimitStore }) {
           }
         : null,
     });
-  });
-
-  // ------------------------------------------------------------------ phone verification
-  router.post('/:slug/otp/request', byIp, requestByPhone, async (req, res) => {
-    const { phone } = validate(z.object({ phone: mobileSchema }).strict(), req.body);
-    const org = await findOrg(req.params.slug);
-    await withTenant(db, org.id, async (trx) => {
-      const recent = await trx('portal_otp_challenges')
-        .where({ organization_id: org.id, phone_e164: phone })
-        .where('created_at', '>', trx.raw("now() - interval '15 minutes'"))
-        .orderBy('created_at', 'desc')
-        .select('created_at');
-      if (recent.length >= OTP_MAX_PER_WINDOW) {
-        throw new AppError(
-          429,
-          'OTP_RATE_LIMITED',
-          'Too many codes requested. Try again in 15 minutes.',
-        );
-      }
-      if (
-        recent[0] &&
-        Date.now() - new Date(recent[0].created_at).getTime() < OTP_COOLDOWN_SECONDS * 1000
-      ) {
-        throw new AppError(
-          429,
-          'OTP_COOLDOWN',
-          `Please wait ${OTP_COOLDOWN_SECONDS} seconds before requesting another code.`,
-        );
-      }
-      await trx('portal_otp_challenges')
-        .where({ organization_id: org.id, phone_e164: phone })
-        .whereNull('consumed_at')
-        .update({ consumed_at: trx.fn.now() });
-      const id = randomUUID();
-      const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
-      await trx('portal_otp_challenges').insert({
-        id,
-        organization_id: org.id,
-        phone_e164: phone,
-        code_hash: digest(id, code).toString('hex'),
-        expires_at: new Date(Date.now() + OTP_TTL_SECONDS * 1000),
-        ip: req.ip ?? null,
-      });
-      try {
-        await sms.sendOtp({ to: phone, code, purpose: 'patient_portal' });
-      } catch (err) {
-        if (err instanceof SmsNotConfiguredError) {
-          throw new AppError(
-            503,
-            'SMS_NOT_CONFIGURED',
-            'SMS is not set up yet. Please ask at the reception.',
-          );
-        }
-        throw new AppError(502, 'SMS_SEND_FAILED', 'Could not send the SMS. Please try again.');
-      }
-    });
-    res.status(202).json({ expiresInSeconds: OTP_TTL_SECONDS });
-  });
-
-  router.post('/:slug/otp/verify', byIp, verifyByPhone, async (req, res) => {
-    const { phone, code } = validate(
-      z.object({ phone: mobileSchema, code: z.string().regex(/^\d{6}$/) }).strict(),
-      req.body,
-    );
-    const org = await findOrg(req.params.slug);
-    const outcome = await withTenant(db, org.id, async (trx) => {
-      const challenge = await trx('portal_otp_challenges')
-        .where({ organization_id: org.id, phone_e164: phone })
-        .whereNull('consumed_at')
-        .orderBy('created_at', 'desc')
-        .forUpdate()
-        .first();
-      if (!challenge || new Date(challenge.expires_at) <= new Date())
-        return { error: invalidCode() };
-      if (challenge.attempts >= OTP_MAX_ATTEMPTS) {
-        return {
-          error: new AppError(
-            429,
-            'OTP_TOO_MANY_ATTEMPTS',
-            'Too many wrong attempts. Request a new code.',
-          ),
-        };
-      }
-      const expected = Buffer.from(challenge.code_hash, 'hex');
-      const actual = digest(challenge.id, code);
-      if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) {
-        await trx('portal_otp_challenges').where({ id: challenge.id }).increment('attempts', 1);
-        return { error: invalidCode() };
-      }
-      await trx('portal_otp_challenges')
-        .where({ id: challenge.id })
-        .update({ consumed_at: trx.fn.now() });
-      const contact = await upsertContact(trx, org.id, phone, { verified: true });
-      await recordAudit(trx, {
-        organizationId: org.id,
-        action: 'portal.phone_verified',
-        entityType: 'contact',
-        entityId: contact.id,
-        ip: req.ip ?? null,
-        requestId: req.id,
-      });
-      return { contact };
-    });
-    if (outcome.error) throw outcome.error;
-    const token = await new SignJWT({ org: org.id })
-      .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
-      .setSubject(outcome.contact.id)
-      .setIssuer(ISSUER)
-      .setAudience(PORTAL_AUDIENCE)
-      .setIssuedAt()
-      .setExpirationTime(`${PORTAL_TOKEN_SECONDS}s`)
-      .sign(secret);
-    res.json({ portalToken: token, expiresIn: PORTAL_TOKEN_SECONDS });
   });
 
   // ------------------------------------------------------------------ the verified person's profiles
@@ -490,6 +337,183 @@ export function portalRouter({ db, config, sms, rateLimitStore }) {
       return created;
     });
     res.status(201).json(row);
+  });
+
+  // ------------------------------------------------------------------ online booking
+  const onlineDoctors = (trx, orgId) =>
+    trx('doctors as d')
+      .join('branches as b', 'b.id', 'd.branch_id')
+      .where({ 'd.organization_id': orgId, 'd.status': 'active', 'd.online_booking_enabled': true })
+      .orderBy('d.display_name')
+      .select(
+        'd.id',
+        'd.display_name',
+        'd.specialization',
+        'd.booking_window_days',
+        'b.name as branch_name',
+      );
+
+  router.get('/:slug/doctors', portalAuth, async (req, res) => {
+    const { org } = req.portal;
+    const rows = await withTenant(db, org.id, (trx) => onlineDoctors(trx, org.id));
+    res.json({
+      data: rows.map((d) => ({
+        id: d.id,
+        name: d.display_name,
+        specialization: d.specialization,
+        branch: d.branch_name,
+        bookingWindowDays: d.booking_window_days,
+      })),
+    });
+  });
+
+  router.get('/:slug/doctors/:id/slots', portalAuth, async (req, res) => {
+    const { date } = validate(z.object({ date: DATE }), req.query);
+    const { org } = req.portal;
+    const out = await withTenant(db, org.id, async (trx) => {
+      if (!isUuid(req.params.id)) throw notFound('Doctor not found');
+      const doctor = await loadDoctor(trx, org.id, req.params.id);
+      if (doctor.status !== 'active' || !doctor.online_booking_enabled)
+        throw notFound('Doctor not found');
+      const today = localDate(doctor.timezone);
+      if (date < today || date > addDays(today, doctor.booking_window_days)) {
+        return { date, slots: [], open: false };
+      }
+      const { slots, timeOff } = await slotsFor(trx, org.id, doctor, date);
+      // Only open times; how full each slot is stays internal.
+      return {
+        date,
+        open: timeOff === null,
+        slots: slots.filter((s) => s.available).map((s) => ({ start: s.start, time: s.time })),
+      };
+    });
+    res.json(out);
+  });
+
+  router.post('/:slug/appointments', portalAuth, async (req, res) => {
+    const body = validate(
+      z
+        .object({
+          patientId: z.string().uuid(),
+          doctorId: z.string().uuid(),
+          slotStart: z.string().datetime({ offset: true }),
+        })
+        .strict(),
+      req.body,
+    );
+    const key = req.get('idempotency-key');
+    if (key !== undefined && !IDEMPOTENCY.test(key)) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'Invalid Idempotency-Key');
+    }
+    const { org, contact } = req.portal;
+    const result = await withTenant(db, org.id, async (trx) => {
+      await authorizedPatient(trx, org, contact, body.patientId);
+      const r = await bookAppointment(trx, org.id, {
+        ...body,
+        source: 'portal',
+        // Keys are scoped to this contact so one person's key can't collide with another's.
+        idempotencyKey: key ? `portal:${contact.id}:${key}` : undefined,
+        contactId: contact.id,
+      });
+      if (!r.replayed) {
+        await recordAudit(trx, {
+          organizationId: org.id,
+          action: 'appointment.booked',
+          entityType: 'appointment',
+          entityId: r.appointmentId,
+          ip: req.ip ?? null,
+          requestId: req.id,
+          metadata: { channel: 'portal' },
+        });
+      }
+      return {
+        ...(await myAppointments(trx, org.id, contact.id)).find((a) => a.id === r.appointmentId),
+        replayed: r.replayed,
+      };
+    });
+    const { replayed, ...appointment } = result;
+    res.status(replayed ? 200 : 201).json(appointment);
+  });
+
+  async function myAppointments(trx, orgId, contactId) {
+    const rows = await trx('appointments as a')
+      .join('contact_patient_links as l', function joinLink() {
+        this.on('l.patient_id', 'a.patient_id')
+          .andOnVal('l.contact_id', contactId)
+          .andOnVal('l.authorization_status', 'authorized');
+      })
+      .join('patients as p', 'p.id', 'a.patient_id')
+      .join('doctors as d', 'd.id', 'a.doctor_id')
+      .join('branches as b', 'b.id', 'a.branch_id')
+      .leftJoin('queue_entries as q', 'q.appointment_id', 'a.id')
+      .where('a.organization_id', orgId)
+      .orderBy('a.slot_start', 'desc')
+      .limit(100)
+      .select(
+        'a.id',
+        'a.appointment_date',
+        'a.slot_start',
+        'a.status',
+        'p.id as patient_id',
+        'p.full_name',
+        'd.display_name',
+        'b.name as branch_name',
+        'q.token_number',
+        'q.tracking_code',
+        'q.status as queue_status',
+      );
+    return rows.map((a) => ({
+      id: a.id,
+      date: a.appointment_date,
+      slotStart: a.slot_start,
+      status: a.status,
+      patient: { id: a.patient_id, fullName: a.full_name },
+      doctor: a.display_name,
+      branch: a.branch_name,
+      token: a.token_number,
+      queueStatus: a.queue_status,
+      trackingCode: a.tracking_code,
+    }));
+  }
+
+  router.get('/:slug/appointments', portalAuth, async (req, res) => {
+    const { org, contact } = req.portal;
+    res.json({
+      data: await withTenant(db, org.id, (trx) => myAppointments(trx, org.id, contact.id)),
+    });
+  });
+
+  router.post('/:slug/appointments/:id/cancel', portalAuth, async (req, res) => {
+    const { org, contact } = req.portal;
+    const data = await withTenant(db, org.id, async (trx) => {
+      if (!isUuid(req.params.id)) throw notFound('Appointment not found');
+      const mine = (await myAppointments(trx, org.id, contact.id)).find(
+        (a) => a.id === req.params.id,
+      );
+      if (!mine) throw notFound('Appointment not found');
+      if (mine.status !== 'booked')
+        throw new AppError(
+          409,
+          'CANNOT_CANCEL',
+          'Only upcoming appointments can be cancelled here',
+        );
+      const entry = await trx('queue_entries')
+        .where({ organization_id: org.id, appointment_id: mine.id })
+        .forUpdate()
+        .first();
+      await transition(trx, org.id, entry, 'cancel', { reason: 'Cancelled by patient online' });
+      await recordAudit(trx, {
+        organizationId: org.id,
+        action: 'appointment.cancelled',
+        entityType: 'appointment',
+        entityId: mine.id,
+        reason: 'Cancelled by patient online',
+        ip: req.ip ?? null,
+        requestId: req.id,
+      });
+      return myAppointments(trx, org.id, contact.id);
+    });
+    res.json({ data });
   });
 
   return router;

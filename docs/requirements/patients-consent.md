@@ -45,15 +45,17 @@ Staff (Bearer access token):
 | Consent        | `GET/POST /patients/:id/consents`                                                                                                                                                                                                                                        |
 | Privacy        | `GET/POST /privacy/notices` · `PATCH/DELETE /privacy/notices/:id` · `POST /privacy/notices/:id/publish` · `GET/PUT /privacy/settings` · `GET /privacy/duplicates` · `POST /privacy/duplicates/:id/decide` · `GET/POST /privacy/requests` · `PATCH /privacy/requests/:id` |
 
-Public clinic portal (QR page at `/clinic/<org-slug>`):
+Patient website (separate site; see ADR 0009). The QR page is `<patient site>/clinic/<org-code>`:
 
-| Step                        | Endpoints                                                                                                                                                                                |
-| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Clinic page and phone check | `GET /public/clinics/:slug` · `POST /public/clinics/:slug/otp/request` · `POST /public/clinics/:slug/otp/verify` (returns a 30-minute portal token)                                      |
-| With the portal token       | `GET /public/clinics/:slug/me` · `POST /public/clinics/:slug/patients` · `POST /public/clinics/:slug/patients/:id/consents` · `POST /public/clinics/:slug/patients/:id/privacy-requests` |
+| Area         | Endpoints                                                                                                                                                                                                                       |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sign-in      | `POST /patient-auth/otp/request` · `POST /patient-auth/otp/verify` (access token plus refresh cookie) · `POST /patient-auth/refresh` · `POST /patient-auth/logout`                                                              |
+| Account      | `GET /patient/me` · `POST /patient/clinics` (join with the hospital code) · `DELETE /patient/clinics/:code`                                                                                                                     |
+| One hospital | `GET /public/clinics/:slug` (public) · `GET /public/clinics/:slug/me` · `POST /public/clinics/:slug/patients` · `POST /public/clinics/:slug/patients/:id/consents` · `POST /public/clinics/:slug/patients/:id/privacy-requests` |
+| Booking      | `GET /public/clinics/:slug/doctors` · `GET /public/clinics/:slug/doctors/:id/slots?date=` · `GET/POST /public/clinics/:slug/appointments` · `POST /public/clinics/:slug/appointments/:id/cancel`                                |
 
-The portal token has its own audience and signing key derivation, so it is rejected by staff APIs. It
-is bound to one organization.
+Patient tokens have their own audience and key, so staff APIs reject them and patient APIs reject
+staff tokens. Per-hospital endpoints require the account to have joined that hospital.
 
 ## Pilot notes
 

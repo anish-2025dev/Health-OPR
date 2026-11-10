@@ -9,6 +9,7 @@ const production = (overrides = {}) => ({
   APP_SECRET_KEY: 'x'.repeat(48),
   DATABASE_URL: NEON_URL,
   FRONTEND_URL: 'https://healthos-web.onrender.com',
+  PATIENT_SITE_URL: 'https://healthos-patient.onrender.com',
   ...overrides,
 });
 
