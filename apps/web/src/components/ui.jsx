@@ -45,12 +45,16 @@ export function Field({ label, error, hint, htmlFor, children }) {
 const inputClass =
   'block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm placeholder:text-slate-400 focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600';
 
+/** A width passed in `className` (e.g. "w-44") replaces the default full width. */
+const fieldClass = (className) =>
+  cx(/(^|\s)w-/.test(className ?? '') ? inputClass.replace('w-full ', '') : inputClass, className);
+
 export const Input = ({ className, ...props }) => (
-  <input className={cx(inputClass, className)} {...props} />
+  <input className={fieldClass(className)} {...props} />
 );
 
 export const Select = ({ className, ...props }) => (
-  <select className={cx(inputClass, className)} {...props} />
+  <select className={fieldClass(className)} {...props} />
 );
 
 export function Card({ title, actions, children, className }) {

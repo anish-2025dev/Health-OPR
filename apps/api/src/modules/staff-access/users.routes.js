@@ -103,8 +103,10 @@ export function usersRouter({ db }) {
 
   router.get('/', requirePermission(PERMISSIONS.USERS_READ), async (req, res) => {
     const { users, assignments } = await withTenant(db, req.auth.organizationId, async (trx) => {
+      // Staff accounts only: employee-only logins (mobile + OTP, no email) are managed on Employees.
       const users = await trx('users')
         .where({ organization_id: req.auth.organizationId })
+        .whereNotNull('email')
         .orderBy('full_name');
       const assignments = await trx('user_role_assignments').where({
         organization_id: req.auth.organizationId,

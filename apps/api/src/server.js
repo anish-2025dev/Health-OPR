@@ -4,6 +4,7 @@ import { createDb } from './core/db.js';
 import { createRedis } from './core/redis.js';
 import { createRedisStore } from './core/rate-limit.js';
 import { createApp } from './app.js';
+import { createSmsSender } from './integrations/sms/index.js';
 
 const config = loadConfig();
 const logger = createLogger(config);
@@ -11,10 +12,19 @@ const db = createDb(config);
 const redis = createRedis(config);
 redis.on('error', (err) => logger.warn({ err: err.message }, 'redis connection error'));
 
+const sms = createSmsSender(config, { logger });
+if (sms.provider === 'none') {
+  logger.warn(
+    { reason: sms.reason },
+    'SMS is not configured: employee OTP sign-in and attendance are unavailable',
+  );
+}
+
 const app = createApp({
   config,
   logger,
   db,
+  sms,
   rateLimitStore: createRedisStore(redis),
   checks: {
     postgres: () => db.raw('select 1'),

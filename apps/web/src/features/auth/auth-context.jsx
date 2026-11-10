@@ -52,6 +52,23 @@ export function AuthProvider({ children }) {
         tokenStore.set(result.accessToken);
         return loadMe();
       },
+      /** Employee sign-in step 1: always resolves the same way (the API doesn't reveal registration). */
+      async requestEmployeeOtp(company, mobile) {
+        return apiFetch('/auth/employee/request-otp', {
+          method: 'POST',
+          body: { company, mobile },
+          auth: false,
+        });
+      },
+      async loginWithOtp(company, mobile, code) {
+        const result = await apiFetch('/auth/employee/verify-otp', {
+          method: 'POST',
+          body: { company, mobile, code },
+          auth: false,
+        });
+        tokenStore.set(result.accessToken);
+        return loadMe();
+      },
       async logout() {
         try {
           await apiFetch('/auth/logout', { method: 'POST', auth: false });

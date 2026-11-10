@@ -48,6 +48,17 @@ services:
           type: keyvalue
           name: healthos-redis
           property: connectionString
+      # SMS for employee OTPs (sign-in and attendance). Needs an MSG91 account with a DLT-approved
+      # OTP template. Until these are set, employee sign-in and attendance show "SMS not set up".
+      - key: SMS_PROVIDER
+        value: msg91
+      - key: MSG91_AUTH_KEY
+        sync: false
+      - key: MSG91_OTP_TEMPLATE_ID
+        sync: false
+      # Name of the OTP variable in your MSG91 template (e.g. otp or var1).
+      - key: MSG91_OTP_VARIABLE
+        value: otp
 
   # ---------------------------------------------------------------- Web (React static site)
   - type: web

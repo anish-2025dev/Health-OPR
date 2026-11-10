@@ -3,7 +3,19 @@ import { useAuth } from '@/features/auth/auth-context';
 import { Button } from '@/components/ui';
 
 const NAV = [
-  { to: '/', label: 'Dashboard', end: true },
+  {
+    to: '/',
+    label: 'Dashboard',
+    end: true,
+    show: (a) => !a.me.roles.every((r) => r.role === 'employee'),
+  },
+  { to: '/my-attendance', label: 'My attendance', show: (a) => Boolean(a.me.employee) },
+  { to: '/attendance', label: 'Attendance', permission: 'attendance.read' },
+  {
+    to: '/attendance/team',
+    label: 'My team',
+    show: (a) => Boolean(a.me.employee?.isManager) && !a.can('attendance.read'),
+  },
   { to: '/employees', label: 'Employees', permission: 'employees.read' },
   { to: '/holidays', label: 'Holidays', permission: 'holidays.read' },
   { to: '/company-setup', label: 'Company setup', permission: 'org_structure.manage' },
@@ -16,7 +28,9 @@ export function AppLayout() {
   const auth = useAuth();
   const { me } = auth;
   // Hiding links is a convenience only; the API enforces every permission.
-  const links = NAV.filter((item) => !item.permission || auth.can(item.permission));
+  const links = NAV.filter(
+    (item) => (!item.permission || auth.can(item.permission)) && (!item.show || item.show(auth)),
+  );
 
   return (
     <div className="min-h-screen md:grid md:grid-cols-[230px_1fr]">
@@ -57,9 +71,12 @@ export function AppLayout() {
             <p className="text-sm font-medium text-slate-800">{me.user.fullName}</p>
             <p className="text-xs text-slate-500">{me.roles.map((r) => r.label).join(', ')}</p>
           </div>
-          <NavLink to="/account/password" className="text-xs text-slate-500 hover:text-slate-800">
-            Password
-          </NavLink>
+          {/* Employees sign in with OTP and have no password. */}
+          {me.user.email && (
+            <NavLink to="/account/password" className="text-xs text-slate-500 hover:text-slate-800">
+              Password
+            </NavLink>
+          )}
           <Button variant="secondary" size="sm" onClick={() => auth.logout()}>
             Sign out
           </Button>

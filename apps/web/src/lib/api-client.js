@@ -65,6 +65,35 @@ export function refreshAccessToken() {
   return refreshing;
 }
 
+/** Downloads a file (e.g. CSV export) with the access token and saves it in the browser. */
+export async function apiDownload(path, filename, { retry = true } = {}) {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    credentials: 'include',
+    headers: {
+      ...CSRF_HEADERS,
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    },
+  });
+  if (res.status === 401 && retry && (await refreshAccessToken())) {
+    return apiDownload(path, filename, { retry: false });
+  }
+  if (!res.ok) {
+    const err = (await res.json().catch(() => null))?.error ?? {};
+    throw new ApiError(
+      res.status,
+      err.code ?? 'HTTP_ERROR',
+      err.message ?? 'Download failed',
+      err.requestId,
+    );
+  }
+  const url = URL.createObjectURL(await res.blob());
+  const a = Object.assign(document.createElement('a'), { href: url, download: filename });
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 /**
  * Fetch wrapper for the HealthOS API. Adds the access token, retries once after refreshing on 401,
  * and turns the backend error envelope { error: { code, message, requestId } } into an ApiError.

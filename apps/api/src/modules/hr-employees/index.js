@@ -352,6 +352,21 @@ export function employeesRouter({ db }) {
       } catch (err) {
         throw translateUniqueViolation(err);
       }
+      // Leaving or suspended: end the employee-only login (mobile + OTP) and its sessions now.
+      if (['exited', 'suspended'].includes(values.employment_status) && existing.user_id) {
+        const roles = await trx('user_role_assignments')
+          .where({ organization_id: req.auth.organizationId, user_id: existing.user_id })
+          .pluck('role_key');
+        if (roles.every((r) => r === 'employee')) {
+          await trx('users')
+            .where({ organization_id: req.auth.organizationId, id: existing.user_id })
+            .update({ status: 'disabled', updated_at: trx.fn.now() });
+          await trx('auth_sessions')
+            .where({ organization_id: req.auth.organizationId, user_id: existing.user_id })
+            .whereNull('revoked_at')
+            .update({ revoked_at: trx.fn.now(), revoke_reason: 'employee_inactive' });
+        }
+      }
       await recordAudit(trx, {
         ...auditContext(req),
         action:

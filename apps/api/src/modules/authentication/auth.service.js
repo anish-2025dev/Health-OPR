@@ -56,6 +56,9 @@ export function createAuthService({ db, config, tokens }) {
   }
 
   return {
+    /** Starts a new session family for an already-verified user (used by employee OTP sign-in). */
+    startSession: (trx, user, meta) => issueSession(trx, { user, familyId: randomUUID(), meta }),
+
     async login({ email, password, meta }) {
       // System context: the tenant is not known until we find the user.
       const user = await withSystem(db, (trx) =>
@@ -238,6 +241,24 @@ export function createAuthService({ db, config, tokens }) {
           .where({ organization_id: organizationId, user_id: userId })
           .select('role_key', 'branch_id');
         const roleKeys = [...new Set(assignments.map((a) => a.role_key))];
+        // Employee profile linked to this login (staff can also be employees).
+        const employee = await trx('employees')
+          .where({ organization_id: organizationId, user_id: userId })
+          .first('id', 'employee_number', 'full_name', 'branch_id', 'employment_status');
+        const directReports = employee
+          ? await trx('employees')
+              .where({ organization_id: organizationId, reporting_manager_id: employee.id })
+              .whereIn('employment_status', ['active', 'on_notice'])
+              .count({ n: '*' })
+              .first()
+          : { n: 0 };
+        const employeeOnly = roleKeys.length > 0 && roleKeys.every((r) => r === 'employee');
+        if (
+          employeeOnly &&
+          (!employee || !['active', 'on_notice'].includes(employee.employment_status))
+        ) {
+          throw unauthorized();
+        }
         const allBranches = assignments.some((a) => a.branch_id === null);
         return {
           userId,
@@ -257,6 +278,16 @@ export function createAuthService({ db, config, tokens }) {
           permissions: permissionsFor(roleKeys),
           // null = all branches; otherwise only these branch ids.
           branchIds: allBranches ? null : [...new Set(assignments.map((a) => a.branch_id))],
+          employee: employee
+            ? {
+                id: employee.id,
+                employeeNumber: employee.employee_number,
+                fullName: employee.full_name,
+                branchId: employee.branch_id,
+                status: employee.employment_status,
+                isManager: Number(directReports.n) > 0,
+              }
+            : null,
         };
       });
     },

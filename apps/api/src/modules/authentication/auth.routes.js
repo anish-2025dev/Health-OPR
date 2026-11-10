@@ -4,6 +4,7 @@ import { validate } from '../../core/validate.js';
 import { rateLimit } from '../../core/rate-limit.js';
 import { ROLES } from '../staff-access/permissions.js';
 import { passwordSchema } from './passwords.js';
+import { mobileSchema } from '../../core/phone.js';
 import { requireCsrfHeader } from './middleware.js';
 
 export const REFRESH_COOKIE = 'hos_refresh';
@@ -12,6 +13,21 @@ const COOKIE_PATH = '/api/v1/auth';
 const loginSchema = z.object({
   email: z.string().trim().email().max(254),
   password: z.string().min(1).max(256),
+});
+
+const companySchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .regex(/^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$/, 'Enter your company code');
+const employeeOtpRequestSchema = z.object({ company: companySchema, mobile: mobileSchema });
+const employeeOtpVerifySchema = z.object({
+  company: companySchema,
+  mobile: mobileSchema,
+  code: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/, 'Enter the 6-digit code'),
 });
 
 const changePasswordSchema = z.object({
@@ -37,10 +53,11 @@ export function presentMe(auth) {
     roles: auth.roles.map((r) => ({ ...r, label: ROLES[r.role]?.label ?? r.role })),
     permissions: [...auth.permissions].sort(),
     branchIds: auth.branchIds,
+    employee: auth.employee,
   };
 }
 
-export function authRouter({ config, authService, authenticate, rateLimitStore }) {
+export function authRouter({ config, authService, authenticate, rateLimitStore, employeeLogin }) {
   const router = Router();
   const secureCookie = config.APP_ENV === 'production' || config.APP_ENV === 'staging';
   const cookieOptions = {
@@ -81,6 +98,61 @@ export function authRouter({ config, authService, authenticate, rateLimitStore }
     setRefreshCookie(res, result.refreshToken);
     res.json({ accessToken: result.accessToken, expiresIn: result.expiresIn });
   });
+
+  // ---------------------------------------------------------------- employee mobile + OTP sign-in
+  const otpLimiterByIp = rateLimit({
+    store: rateLimitStore,
+    prefix: 'emp-otp-ip',
+    limit: 30,
+    windowSec: 15 * 60,
+    key: (req) => req.ip ?? 'unknown',
+  });
+  const mobileKey = (req) =>
+    String(req.body?.mobile ?? '')
+      .replace(/\D/g, '')
+      .slice(-10);
+  const otpRequestLimiterByMobile = rateLimit({
+    store: rateLimitStore,
+    prefix: 'emp-otp-req-mobile',
+    limit: 10,
+    windowSec: 15 * 60,
+    key: mobileKey,
+  });
+  // Each code also allows only 5 wrong attempts (see otp module); this caps guessing across codes.
+  const otpVerifyLimiterByMobile = rateLimit({
+    store: rateLimitStore,
+    prefix: 'emp-otp-verify-mobile',
+    limit: 25,
+    windowSec: 15 * 60,
+    key: mobileKey,
+  });
+
+  router.post(
+    '/employee/request-otp',
+    otpLimiterByIp,
+    otpRequestLimiterByMobile,
+    async (req, res) => {
+      const body = validate(employeeOtpRequestSchema, req.body);
+      await employeeLogin.requestOtp({ ...body, ip: req.ip ?? null });
+      res.status(202).json({
+        message:
+          'If this mobile number is registered with this company, a 6-digit code has been sent by SMS.',
+        expiresInSeconds: 300,
+      });
+    },
+  );
+
+  router.post(
+    '/employee/verify-otp',
+    otpLimiterByIp,
+    otpVerifyLimiterByMobile,
+    async (req, res) => {
+      const body = validate(employeeOtpVerifySchema, req.body);
+      const result = await employeeLogin.verifyOtp({ ...body, meta: meta(req) });
+      setRefreshCookie(res, result.refreshToken);
+      res.json({ accessToken: result.accessToken, expiresIn: result.expiresIn });
+    },
+  );
 
   router.post('/refresh', requireCsrfHeader, async (req, res) => {
     try {

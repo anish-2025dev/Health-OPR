@@ -42,6 +42,14 @@ const schema = z
       .default('info'),
     DATABASE_URL: z.string().default('postgres://healthos@localhost:5432/healthos'),
     REDIS_URL: z.string().default('redis://localhost:6379/0'),
+    // SMS for employee OTPs: 'msg91' in deployed environments, 'console' for local development.
+    SMS_PROVIDER: z.enum(['msg91', 'console', '']).default(''),
+    MSG91_AUTH_KEY: z.string().default(''),
+    MSG91_OTP_TEMPLATE_ID: z.string().default(''),
+    MSG91_OTP_VARIABLE: z
+      .string()
+      .regex(/^[A-Za-z0-9_]{1,30}$/)
+      .default('otp'),
   })
   .superRefine((env, ctx) => {
     const deployed = env.APP_ENV === 'staging' || env.APP_ENV === 'production';

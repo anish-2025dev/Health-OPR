@@ -33,7 +33,14 @@ Status markers: ✅ in place · 🔜 planned for the named phase.
 - ✅ The same error for unknown email and wrong password, with equalized timing.
 - ✅ Every request re-checks the session, user and organization status, so logout, disable and password
   reset take effect immediately.
-- 🔜 MFA (TOTP) for owners, admins and payroll roles. Employee mobile OTP login (Phase 8/9a).
+- ✅ Employee sign-in with mobile + SMS OTP (Phase 9a): 6-digit codes, HMAC-hashed at rest, 5-minute
+  expiry, single use, 5 wrong attempts per code, 30-second cooldown, 5 codes per 15 minutes, and
+  per-IP/per-mobile rate limits. The same response for registered and unregistered numbers. An OTP never
+  opens an account that holds staff roles.
+- ✅ Attendance: the geofence is checked before any OTP is sent; the OTP is verified and the punch saved
+  atomically; failed attempts are audited; only distance, accuracy and the result are stored (no
+  location history). OTPs are never logged (the console SMS adapter is refused outside development).
+- 🔜 MFA (TOTP) for owners, admins and payroll roles.
 - OTP proves possession of a phone, **not** identity or authority over a family member.
 
 ## Authorization (✅ Phase 2)

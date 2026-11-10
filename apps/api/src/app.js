@@ -16,7 +16,7 @@ import { errorHandler, notFoundHandler, requestId } from './core/middleware.js';
  *   rateLimitStore?: { increment(key: string, windowSec: number): Promise<number> },
  * }} deps
  */
-export function createApp({ config, logger, checks, db, rateLimitStore }) {
+export function createApp({ config, logger, checks, db, rateLimitStore, sms }) {
   const app = express();
 
   app.disable('x-powered-by');
@@ -50,7 +50,7 @@ export function createApp({ config, logger, checks, db, rateLimitStore }) {
     next();
   });
 
-  app.use('/api/v1', apiV1Router({ config, checks, db, rateLimitStore }));
+  app.use('/api/v1', apiV1Router({ config, checks, db, rateLimitStore, sms, logger }));
 
   app.use(notFoundHandler);
   app.use(errorHandler);

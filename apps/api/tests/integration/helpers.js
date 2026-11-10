@@ -9,6 +9,7 @@ import { withSystem } from '../../src/core/db.js';
 import { createOrganizationWithOwner } from '../../src/modules/organizations/index.js';
 import { hashPassword } from '../../src/modules/authentication/passwords.js';
 import { testDatabaseUrl } from './test-db.js';
+import { createMemorySms } from '../../src/integrations/sms/index.js';
 
 export const PASSWORD = 'correct-horse-battery-staple';
 export const CSRF = { 'X-Requested-With': 'healthos-web' };
@@ -20,14 +21,16 @@ export function setupTestApp() {
     DATABASE_URL: testDatabaseUrl(),
   });
   const db = knex({ client: 'pg', connection: config.DATABASE_URL, pool: { min: 0, max: 5 } });
+  const sms = createMemorySms();
   const app = createApp({
     config,
     logger: createLogger(config),
     db,
+    sms,
     rateLimitStore: createMemoryStore(),
     checks: { postgres: () => db.raw('select 1') },
   });
-  return { app, db, config };
+  return { app, db, config, sms };
 }
 
 const suffix = () => randomUUID().slice(0, 8);

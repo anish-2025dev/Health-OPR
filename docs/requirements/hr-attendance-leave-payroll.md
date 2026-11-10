@@ -42,19 +42,19 @@ A company can have several policies (for example "Default", "Night shift"). Each
 employees, departments or branches, and each is **versioned with effective dates**, so past months are
 always calculated with the policy that applied at the time.
 
-| Setting                    | Example                                | Meaning                                               |
-| -------------------------- | -------------------------------------- | ----------------------------------------------------- |
-| Full-day hours             | 9 h                                    | Worked hours ≥ this → **Present**                     |
-| Half-day hours             | 5 h                                    | Worked hours ≥ this but < full day → **Half Day**     |
-| Below half-day             | Absent / Reduced Hours                 | What to mark when worked hours < half-day hours       |
-| Late grace                 | 30 min                                 | Check-in within shift start + grace is on time        |
-| Late categories            | 30–60 min "Late", > 60 min "Very late" | Labels shown in reports                               |
-| Free late arrivals / month | 4                                      | Lates within this count carry no penalty              |
-| Late penalty mode          | see below                              | What happens after the free count                     |
-| Early check-in window      | 60 min                                 | Earliest a check-in is accepted before shift start    |
-| Overtime threshold         | after full day + 30 min                | OT counted only beyond this; **OT requires approval** |
-| Minimum punch gap          | 40 s                                   | Ignores accidental double scans                       |
-| Week-off pattern           | Sun / alternate Sat                    | Days marked **Week Off**                              |
+| Setting                    | Example                                | Meaning                                                                                   |
+| -------------------------- | -------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Full-day hours             | 9 h                                    | Hours from check-in to check-out ≥ this → **Present** (the shift break is not subtracted) |
+| Half-day hours             | 5 h                                    | Worked hours ≥ this but < full day → **Half Day**                                         |
+| Below half-day             | Absent / Reduced Hours                 | What to mark when worked hours < half-day hours                                           |
+| Late grace                 | 30 min                                 | Check-in within shift start + grace is on time                                            |
+| Late categories            | 30–60 min "Late", > 60 min "Very late" | Labels shown in reports                                                                   |
+| Free late arrivals / month | 4                                      | Lates within this count carry no penalty                                                  |
+| Late penalty mode          | see below                              | What happens after the free count                                                         |
+| Early check-in window      | 60 min                                 | Earliest a check-in is accepted before shift start                                        |
+| Overtime threshold         | after full day + 30 min                | OT counted only beyond this; **OT requires approval**                                     |
+| Minimum punch gap          | 40 s                                   | Ignores accidental double scans                                                           |
+| Week-off pattern           | Sun / alternate Sat                    | Days marked **Week Off**                                                                  |
 
 **Late penalty modes** (admin picks one per policy):
 

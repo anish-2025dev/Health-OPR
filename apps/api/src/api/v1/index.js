@@ -11,12 +11,16 @@ import { auditRouter } from '../../modules/audit/index.js';
 import { orgStructureRouters } from '../../modules/org-structure/index.js';
 import { employeesRouter } from '../../modules/hr-employees/index.js';
 import { createMemoryStore } from '../../core/rate-limit.js';
+import { createSmsSender } from '../../integrations/sms/index.js';
+import { createOtpService } from '../../modules/otp/index.js';
+import { createEmployeeLogin } from '../../modules/authentication/employee-login.js';
+import { attendanceRouter, selfAttendanceRouter } from '../../modules/hr-attendance/routes.js';
 
 /**
  * Versioned API surface mounted at /api/v1. Each module exposes a router that is mounted here.
  * Every module except /health and /auth requires authentication.
  */
-export function apiV1Router({ config, checks, db, rateLimitStore }) {
+export function apiV1Router({ config, checks, db, rateLimitStore, sms, logger }) {
   const router = Router();
   router.use('/health', healthRouter({ checks }));
 
@@ -25,6 +29,8 @@ export function apiV1Router({ config, checks, db, rateLimitStore }) {
   const tokens = createTokenService(config);
   const authService = createAuthService({ db, config, tokens });
   const authenticate = authenticateMiddleware({ tokens, authService });
+  const otp = createOtpService({ db, config, sms: sms ?? createSmsSender(config, { logger }) });
+  const employeeLogin = createEmployeeLogin({ db, otp, authService });
 
   router.use(
     '/auth',
@@ -33,6 +39,7 @@ export function apiV1Router({ config, checks, db, rateLimitStore }) {
       authService,
       authenticate,
       rateLimitStore: rateLimitStore ?? createMemoryStore(),
+      employeeLogin,
     }),
   );
   router.use('/organizations', authenticate, organizationsRouter({ db }));
@@ -46,6 +53,8 @@ export function apiV1Router({ config, checks, db, rateLimitStore }) {
   router.use('/shifts', authenticate, structure.shifts);
   router.use('/holidays', authenticate, structure.holidays);
   router.use('/hr/employees', authenticate, employeesRouter({ db }));
+  router.use('/attendance', authenticate, attendanceRouter({ db }));
+  router.use('/me', authenticate, selfAttendanceRouter({ db, otp }));
 
   return router;
 }

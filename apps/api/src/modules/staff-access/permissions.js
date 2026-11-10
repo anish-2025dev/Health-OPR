@@ -16,6 +16,10 @@ export const PERMISSIONS = Object.freeze({
   HOLIDAYS_READ: 'holidays.read',
   EMPLOYEES_READ: 'employees.read',
   EMPLOYEES_MANAGE: 'employees.manage',
+  // Phase 9a: attendance. (Employees always see their own attendance through their employee link,
+  // and reporting managers see their direct reports; neither needs these permissions.)
+  ATTENDANCE_READ: 'attendance.read',
+  ATTENDANCE_MANAGE: 'attendance.manage',
 });
 
 const ALL = Object.values(PERMISSIONS);
@@ -30,7 +34,13 @@ export const ROLES = Object.freeze({
   organization_admin: { label: 'Organization admin', permissions: ALL },
   clinic_manager: {
     label: 'Clinic manager',
-    permissions: [P.BRANCHES_READ, P.USERS_READ, P.HOLIDAYS_READ, P.EMPLOYEES_READ],
+    permissions: [
+      P.BRANCHES_READ,
+      P.USERS_READ,
+      P.HOLIDAYS_READ,
+      P.EMPLOYEES_READ,
+      P.ATTENDANCE_READ,
+    ],
   },
   hr_manager: {
     label: 'HR manager',
@@ -41,13 +51,15 @@ export const ROLES = Object.freeze({
       P.ORG_STRUCTURE_MANAGE,
       P.EMPLOYEES_READ,
       P.EMPLOYEES_MANAGE,
+      P.ATTENDANCE_READ,
+      P.ATTENDANCE_MANAGE,
     ],
   },
   payroll_manager: {
     label: 'Payroll manager',
-    permissions: [P.BRANCHES_READ, P.HOLIDAYS_READ, P.EMPLOYEES_READ],
+    permissions: [P.BRANCHES_READ, P.HOLIDAYS_READ, P.EMPLOYEES_READ, P.ATTENDANCE_READ],
   },
-  // Team view (direct reports) arrives with attendance in Phase 9a.
+  // Department managers see and approve their direct reports through the employee reporting line.
   department_manager: {
     label: 'Department manager',
     permissions: [P.BRANCHES_READ, P.HOLIDAYS_READ],

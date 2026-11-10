@@ -10,13 +10,23 @@ import { EmployeesPage } from '@/features/employees/EmployeesPage';
 import { EmployeeFormPage } from '@/features/employees/EmployeeFormPage';
 import { HolidaysPage } from '@/features/org-structure/HolidaysPage';
 import { CompanySetupPage } from '@/features/org-structure/CompanySetupPage';
+import { EmployeeLoginPage } from '@/features/auth/EmployeeLoginPage';
+import { MyAttendancePage } from '@/features/attendance/MyAttendancePage';
+import {
+  AttendanceDashboardPage,
+  AttendanceRegisterPage,
+  AttendanceSettingsPage,
+  EmployeeAttendancePage,
+  RegularizationsPage,
+  TeamAttendancePage,
+} from '@/features/attendance/AdminAttendancePages';
 import { Spinner } from '@/components/ui';
 import { AppLayout } from './AppLayout';
 
 /** Friendly page for routes the user can't open. The API enforces the same permission. */
-function RequirePermission({ permission, children }) {
+function RequirePermission({ permission, allow, children }) {
   const auth = useAuth();
-  if (auth.can(permission)) return children;
+  if (allow ? allow(auth) : auth.can(permission)) return children;
   return (
     <div className="max-w-md">
       <h1 className="text-xl font-bold text-slate-900">No access</h1>
@@ -25,6 +35,14 @@ function RequirePermission({ permission, children }) {
       </p>
     </div>
   );
+}
+
+/** Employee-only accounts land on their attendance page; staff on the dashboard. */
+function HomeRoute() {
+  const { me } = useAuth();
+  const employeeOnly = me.roles.every((r) => r.role === 'employee');
+  if (employeeOnly && me.employee) return <Navigate to="/my-attendance" replace />;
+  return <DashboardPage />;
 }
 
 function RequireAuth() {
@@ -48,8 +66,60 @@ export function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/employee-login" element={<EmployeeLoginPage />} />
       <Route element={<RequireAuth />}>
-        <Route index element={<DashboardPage />} />
+        <Route index element={<HomeRoute />} />
+        <Route
+          path="my-attendance"
+          element={
+            <RequirePermission allow={(a) => Boolean(a.me.employee)}>
+              <MyAttendancePage />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="attendance"
+          element={
+            <RequirePermission permission="attendance.read">
+              <AttendanceDashboardPage />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="attendance/register"
+          element={
+            <RequirePermission permission="attendance.read">
+              <AttendanceRegisterPage />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="attendance/settings"
+          element={
+            <RequirePermission permission="attendance.read">
+              <AttendanceSettingsPage />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="attendance/requests"
+          element={
+            <RequirePermission
+              allow={(a) => a.can('attendance.manage') || Boolean(a.me.employee?.isManager)}
+            >
+              <RegularizationsPage />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="attendance/team"
+          element={
+            <RequirePermission allow={(a) => Boolean(a.me.employee?.isManager)}>
+              <TeamAttendancePage />
+            </RequirePermission>
+          }
+        />
+        <Route path="attendance/employees/:id" element={<EmployeeAttendancePage />} />
         <Route
           path="branches"
           element={

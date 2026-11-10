@@ -39,6 +39,18 @@ beforeAll(async () => {
   const payrollUser = await addUser(db, a.organization.id, ['payroll_manager'], 'payroll');
   const recUser = await addUser(db, a.organization.id, ['receptionist'], 'rec');
   const empUser = await addUser(db, a.organization.id, ['employee'], 'emp');
+  // Employee-only logins must be linked to an active employee profile.
+  await sys(db, (t) =>
+    t('employees').insert({
+      organization_id: a.organization.id,
+      branch_id: a.branch.id,
+      employee_number: 'LINKED-1',
+      full_name: 'Linked Employee',
+      mobile_e164: '+919000000001',
+      joining_date: '2026-01-01',
+      user_id: empUser.id,
+    }),
+  );
   hr = api((await login(app, hrUser.email)).token);
   payroll = api((await login(app, payrollUser.email)).token);
   receptionist = api((await login(app, recUser.email)).token);

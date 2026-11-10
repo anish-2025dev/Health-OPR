@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Navigate, useLocation, useNavigate } from 'react-router';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router';
 import { Alert, Button, Field, Input } from '@/components/ui';
 import { useAuth } from './auth-context';
 
@@ -65,6 +65,11 @@ export function LoginPage() {
         </form>
         <p className="mt-6 text-center text-xs text-slate-500">
           Forgot your password? Ask your organization admin to reset it.
+        </p>
+        <p className="mt-2 text-center text-sm">
+          <Link to="/employee-login" className="font-medium text-brand-700 hover:underline">
+            Employee? Sign in with your mobile number
+          </Link>
         </p>
       </div>
     </div>
