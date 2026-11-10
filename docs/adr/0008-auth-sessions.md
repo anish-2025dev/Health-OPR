@@ -48,5 +48,5 @@ The product owner asked for the option that is "best and easy to implement".
 ## Consequences
 
 - No SMS dependency for staff, so Phase 2 can start immediately.
-- Employee check-in has no per-punch SMS cost.
+- Each employee check-in and check-out sends one SMS, so attendance depends on the SMS provider being set up (DLT registration in India).
 - A person who is both staff and an employee uses their staff login. Their self-service pages are the same.
