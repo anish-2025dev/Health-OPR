@@ -96,6 +96,7 @@ export function MonthView({ data, dayActionLabel, onDayAction }) {
                         {/* In the first column so it stays reachable on narrow phone screens. */}
                         {onDayAction &&
                           !['upcoming', 'not_employed'].includes(d.status) &&
+                          !(data.today && d.date > data.today) &&
                           !d.pendingRegularization && (
                             <button
                               type="button"

@@ -432,6 +432,7 @@ export async function buildMonth(trx, { organizationId, emp, policy, month }) {
   const policyView = presentPolicy(policy);
   return {
     month,
+    today,
     employee: {
       id: emp.id,
       employeeNumber: emp.employeeNumber,

@@ -31,8 +31,9 @@ function RequestCorrectionForm({ day, onDone }) {
         method: 'POST',
         body: {
           date: day.date,
-          ...(form.checkIn && form.checkIn !== day.checkIn ? { checkIn: form.checkIn } : {}),
-          ...(form.checkOut && form.checkOut !== day.checkOut ? { checkOut: form.checkOut } : {}),
+          // Send the times shown in the form, even if unchanged (e.g. confirming a day).
+          ...(form.checkIn ? { checkIn: form.checkIn } : {}),
+          ...(form.checkOut ? { checkOut: form.checkOut } : {}),
           ...(form.status ? { status: form.status } : {}),
           reason: form.reason,
         },
