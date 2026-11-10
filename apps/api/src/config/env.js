@@ -60,6 +60,13 @@ const schema = z
       .string()
       .regex(/^[A-Za-z0-9_]{1,30}(,[A-Za-z0-9_]{1,30}){3}$/)
       .default('token,date,time,link'),
+    // Optional SMS telling an employee a new in-app message is waiting (no content). Separate DLT
+    // template; its two variable names, in order: organization name, link.
+    MSG91_MESSAGE_ALERT_TEMPLATE_ID: z.string().default(''),
+    MSG91_MESSAGE_ALERT_VARIABLES: z
+      .string()
+      .regex(/^[A-Za-z0-9_]{1,30},[A-Za-z0-9_]{1,30}$/)
+      .default('org,link'),
     // WhatsApp Business Platform (Meta Cloud API). 'console' prints messages in development.
     // Each hospital's WhatsApp phone number ID is registered in the app (Settings → WhatsApp).
     WHATSAPP_PROVIDER: z.enum(['meta', 'console', '']).default(''),

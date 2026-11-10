@@ -25,6 +25,7 @@ import { attendanceRouter, selfAttendanceRouter } from '../../modules/hr-attenda
 import { leaveRouter, selfLeaveRouter } from '../../modules/hr-leave/routes.js';
 import { payrollRouter, selfPayslipRouter } from '../../modules/hr-payroll/routes.js';
 import { statutoryRouter } from '../../modules/hr-statutory/routes.js';
+import { messagesRouter, selfMessagesRouter } from '../../modules/messages/index.js';
 import { patientsRouter } from '../../modules/patients/routes.js';
 import { privacyRouter } from '../../modules/patients/privacy.routes.js';
 import { portalRouter } from '../../modules/patients/portal.routes.js';
@@ -98,8 +99,10 @@ export function apiV1Router({ app, config, checks, db, rateLimitStore, sms, what
   router.use('/attendance', authenticate, attendanceRouter({ db }));
   router.use('/me/leave', authenticate, selfLeaveRouter({ db }));
   router.use('/me/payslips', authenticate, selfPayslipRouter({ db }));
+  router.use('/me/messages', authenticate, selfMessagesRouter({ db }));
   router.use('/me', authenticate, selfAttendanceRouter({ db, otp }));
   router.use('/leave', authenticate, leaveRouter({ db }));
+  router.use('/messages', authenticate, messagesRouter({ db, config, sms: smsSender, logger }));
   router.use('/payroll/statutory', authenticate, statutoryRouter({ db }));
   router.use('/payroll', authenticate, payrollRouter({ db }));
   router.use('/patients', authenticate, patientsRouter({ db }));

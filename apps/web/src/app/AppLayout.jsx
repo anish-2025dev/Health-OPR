@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from 'react-router';
 import { useAuth } from '@/features/auth/auth-context';
 import { Button } from '@/components/ui';
+import { useUnreadMessages } from '@/features/messages/shared';
 
 const NAV = [
   {
@@ -12,6 +13,12 @@ const NAV = [
   { to: '/my-attendance', label: 'My attendance', show: (a) => Boolean(a.me.employee) },
   { to: '/my-leave', label: 'My leave', show: (a) => Boolean(a.me.employee) },
   { to: '/my-payslips', label: 'My payslips', show: (a) => Boolean(a.me.employee) },
+  {
+    to: '/my-messages',
+    label: 'My messages',
+    badge: 'unread',
+    show: (a) => Boolean(a.me.employee),
+  },
   { to: '/clinic', label: 'Clinic today', permission: 'appointments.read' },
   {
     to: '/reception',
@@ -40,6 +47,12 @@ const NAV = [
     show: (a) => Boolean(a.me.employee?.isManager) && !a.can('attendance.read'),
   },
   { to: '/payroll', label: 'Payroll', permission: 'payroll.read' },
+  {
+    to: '/messages',
+    label: 'Send messages',
+    show: (a) =>
+      a.can('employees.manage') || a.can('payroll.manage') || Boolean(a.me.employee?.isManager),
+  },
   { to: '/employees', label: 'Employees', permission: 'employees.read' },
   { to: '/holidays', label: 'Holidays', permission: 'holidays.read' },
   { to: '/company-setup', label: 'Company setup', permission: 'org_structure.manage' },
@@ -52,6 +65,7 @@ const NAV = [
 export function AppLayout() {
   const auth = useAuth();
   const { me } = auth;
+  const unread = useUnreadMessages(Boolean(me.employee));
   // Hiding links is a convenience only; the API enforces every permission.
   const links = NAV.filter(
     (item) => (!item.permission || auth.can(item.permission)) && (!item.show || item.show(auth)),
@@ -82,6 +96,11 @@ export function AppLayout() {
               }
             >
               {item.label}
+              {item.badge === 'unread' && unread > 0 && (
+                <span className="ml-2 rounded-full bg-brand-700 px-1.5 text-xs text-white">
+                  {unread}
+                </span>
+              )}
             </NavLink>
           ))}
         </nav>

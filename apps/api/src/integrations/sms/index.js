@@ -28,6 +28,9 @@ export function createMemorySms() {
     async sendAppointment({ to, variables }) {
       sent.push({ to, purpose: 'appointment', variables, at: new Date() });
     },
+    async sendMessageAlert({ to, variables }) {
+      sent.push({ to, purpose: 'message_alert', variables, at: new Date() });
+    },
   };
 }
 
@@ -38,6 +41,9 @@ function createConsoleSms(logger) {
       // Development only: printed to stdout for the developer, NOT through the structured logger.
       process.stdout.write(`\n[dev SMS] OTP for ${to} (${purpose}): ${code}\n\n`);
       logger?.info({ purpose, provider: 'console' }, 'development OTP printed to console');
+    },
+    async sendMessageAlert({ to, variables }) {
+      process.stdout.write(`\n[dev SMS] new message alert to ${to}: ${variables.link}\n\n`);
     },
     async sendAppointment({ to, variables }) {
       process.stdout.write(
@@ -68,6 +74,17 @@ function createMsg91Sms(config, fetchImpl = globalThis.fetch) {
   };
   return {
     provider: 'msg91',
+    async sendMessageAlert({ to, variables }) {
+      if (!config.MSG91_MESSAGE_ALERT_TEMPLATE_ID) {
+        throw new SmsNotConfiguredError('MSG91_MESSAGE_ALERT_TEMPLATE_ID is not set');
+      }
+      const names = config.MSG91_MESSAGE_ALERT_VARIABLES.split(',');
+      await flow(config.MSG91_MESSAGE_ALERT_TEMPLATE_ID, {
+        mobiles: to.replace(/^\+/, ''),
+        [names[0]]: String(variables.org),
+        [names[1]]: String(variables.link),
+      });
+    },
     async sendAppointment({ to, variables }) {
       if (!config.MSG91_APPOINTMENT_TEMPLATE_ID) {
         throw new SmsNotConfiguredError('MSG91_APPOINTMENT_TEMPLATE_ID is not set');
@@ -130,6 +147,9 @@ function notConfigured(reason) {
       throw new SmsNotConfiguredError(reason);
     },
     async sendAppointment() {
+      throw new SmsNotConfiguredError(reason);
+    },
+    async sendMessageAlert() {
       throw new SmsNotConfiguredError(reason);
     },
   };

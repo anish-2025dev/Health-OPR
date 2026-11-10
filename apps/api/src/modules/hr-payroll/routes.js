@@ -5,6 +5,7 @@ import { validate } from '../../core/validate.js';
 import { isUuid, withTenant } from '../../core/db.js';
 import { AppError, conflict, notFound } from '../../core/errors.js';
 import { auditContext, recordAudit } from '../audit/index.js';
+import { createEmployeeMessage } from '../messages/index.js';
 import { PERMISSIONS, requirePermission } from '../staff-access/permissions.js';
 import { ENGINE_VERSION, fromPaise, toPaise } from './engine.js';
 import { periodLabel, renderPayslip } from './payslip-pdf.js';
@@ -963,6 +964,25 @@ export function payrollRouter({ db }) {
         entityType: 'payroll_run',
         entityId: run.id,
         metadata: { confirm: body.confirm, employees: Number(count.n) },
+      });
+      // Tell each employee their payslip is ready (in-app; amounts stay on the payslip).
+      const employeeIds = await trx('payroll_items')
+        .where({ payroll_run_id: run.id })
+        .pluck('employee_id');
+      const period = new Date(`${run.period_start}T00:00:00Z`).toLocaleDateString('en-IN', {
+        month: 'long',
+        year: 'numeric',
+        timeZone: 'UTC',
+      });
+      await createEmployeeMessage(trx, req.auth.organizationId, {
+        senderUserId: req.auth.userId,
+        senderLabel: 'Payroll',
+        category: 'payroll',
+        title: `Your payslip for ${period} is ready`,
+        body: 'Open My payslips to view or download it. Contact HR if anything looks wrong.',
+        audienceType: 'system',
+        audienceLabel: `Payroll ${period}`,
+        employeeIds,
       });
       return runsQuery(trx, req.auth.organizationId).where('r.id', run.id).first();
     });

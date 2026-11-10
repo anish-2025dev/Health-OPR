@@ -44,6 +44,7 @@ import {
   TrackPage,
 } from '@/features/clinic/QueuePages';
 import { MessagingPage } from '@/features/integrations/MessagingPage';
+import { MessagesPage, MyMessagesPage } from '@/features/messages/MessagesPages';
 import { Spinner } from '@/components/ui';
 import { AppLayout } from './AppLayout';
 
@@ -352,6 +353,28 @@ export function App() {
           element={
             <RequirePermission permission="organization.manage">
               <MessagingPage />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="messages"
+          element={
+            <RequirePermission
+              allow={(a) =>
+                a.can('employees.manage') ||
+                a.can('payroll.manage') ||
+                Boolean(a.me.employee?.isManager)
+              }
+            >
+              <MessagesPage />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="my-messages"
+          element={
+            <RequirePermission allow={(a) => Boolean(a.me.employee)}>
+              <MyMessagesPage />
             </RequirePermission>
           }
         />

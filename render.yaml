@@ -65,6 +65,9 @@ services:
       # Optional SMS appointment confirmations (separate DLT template).
       - key: MSG91_APPOINTMENT_TEMPLATE_ID
         sync: false
+      # Optional "you have a new message" SMS for employees (separate DLT template).
+      - key: MSG91_MESSAGE_ALERT_TEMPLATE_ID
+        sync: false
       # WhatsApp Business Platform (Meta Cloud API). Leave the provider empty until Meta is set up.
       # Webhook URL to give Meta: https://<api host>/api/v1/webhooks/whatsapp
       - key: WHATSAPP_PROVIDER
