@@ -1,0 +1,1091 @@
+{
+  "project": {
+    "name": "Healthcare Operations OS",
+    "repository_name": "healthos-platform",
+    "slug": "healthos-platform",
+    "description": "Multi-tenant B2B SaaS platform for hospitals, clinics and nursing homes covering patient registration, appointments, queue management, WhatsApp self-service for existing patients, employee management, attendance, leave and payroll.",
+    "version": "1.0.0",
+    "development_environment": "GitHub Codespaces",
+    "architecture_style": "modular_monolith",
+    "repository_strategy": "monorepo",
+    "primary_market": "India",
+    "target_customers": [
+      "hospitals",
+      "clinics",
+      "nursing_homes"
+    ],
+    "development_principles": [
+      "Build a secure, maintainable MVP before advanced features.",
+      "Use clear module boundaries inside a modular monolith.",
+      "All tenant-owned data must be scoped to an organization and, where relevant, a branch.",
+      "Never expose patient or employee data across tenants.",
+      "Use database transactions for booking, token generation and payroll finalization.",
+      "Do not hardcode statutory rates, thresholds or effective dates.",
+      "Use migrations for all database schema changes.",
+      "Keep secrets out of source control.",
+      "Add automated tests for permissions, tenant isolation and critical business rules.",
+      "Do not use real patient data in development or demos."
+    ]
+  },
+  "product_decisions": {
+    "patient_onboarding": {
+      "new_patient_channels": [
+        "clinic_qr_portal",
+        "receptionist_assisted_registration",
+        "clinic_kiosk"
+      ],
+      "existing_patient_channels": [
+        "clinic_qr_portal",
+        "whatsapp"
+      ],
+      "whatsapp_booking_policy": "existing_registered_patients_only",
+      "new_patient_whatsapp_behavior": "Do not create a patient profile through WhatsApp. Explain that the person must register through the clinic portal or receptionist-assisted workflow.",
+      "qr_code_scope": "clinic_or_branch_specific",
+      "patient_profile_persistence": "Persist patient profiles in the clinic tenant database; do not rely on browser local storage as the system of record.",
+      "phone_number_identity_rule": "A phone number identifies a contact channel, not a unique patient.",
+      "family_account_rule": "One verified contact number may be linked to multiple individual patient profiles through explicit relationship and authorization records.",
+      "family_member_selection": "Before WhatsApp booking, ask which registered patient the appointment is for.",
+      "unregistered_family_member_behavior": "Redirect to the clinic registration portal or receptionist; do not silently create a patient record.",
+      "duplicate_detection": "Use configurable matching and staff review; never automatically merge patient records based only on phone number or name."
+    },
+    "appointments_and_queue": {
+      "distinguish_workflows": [
+        "appointment_booking",
+        "walk_in_registration",
+        "arrival_check_in",
+        "queue_management"
+      ],
+      "token_generation": "Generate tokens transactionally within the clinic/branch, service date and configured queue.",
+      "queue_updates": "Support live dashboard updates and approximate patient-facing queue status.",
+      "queue_estimates": "Label wait-time estimates as approximate and avoid promising exact consultation times.",
+      "receptionist_override": "Authorized staff may create, update, cancel or prioritize queue entries with an audit reason."
+    },
+    "consent_and_privacy": {
+      "separate_records_for": [
+        "privacy_notice_acknowledgement_or_processing_consent_as_legally_applicable",
+        "whatsapp_service_messages_opt_in",
+        "sms_service_messages_opt_in",
+        "marketing_consent"
+      ],
+      "marketing_consent": "Optional, separate and not a condition for receiving essential care or appointment services.",
+      "consent_evidence": [
+        "subject_patient_id",
+        "acting_person_id_if_applicable",
+        "organization_id",
+        "purpose",
+        "channel",
+        "notice_or_consent_version",
+        "status",
+        "captured_at",
+        "withdrawn_at",
+        "capture_source"
+      ],
+      "privacy_requirements": [
+        "Provide clear privacy notices and purpose limitation.",
+        "Support correction and applicable data-principal requests.",
+        "Define retention and deletion workflows with legal review.",
+        "Restrict access using least privilege.",
+        "Encrypt traffic and sensitive data at rest using managed infrastructure controls.",
+        "Maintain audit logs for sensitive record access and changes.",
+        "Do not treat OTP possession as proof of a family member's identity or authority."
+      ],
+      "legal_note": "Implement privacy and employment compliance through configurable controls and obtain qualified Indian legal/payroll review before production. Do not represent the software as automatically ensuring legal compliance."
+    },
+    "hr_scope": {
+      "employee_management": [
+        "employee_profiles",
+        "employee_id",
+        "departments",
+        "designations",
+        "employment_types",
+        "joining_and_exit_dates",
+        "employment_status",
+        "employee_documents",
+        "emergency_contacts",
+        "salary_history"
+      ],
+      "attendance": [
+        "check_in_and_check_out",
+        "manual_attendance_by_authorized_staff",
+        "qr_attendance",
+        "late_arrival",
+        "early_departure",
+        "half_day_and_full_day",
+        "overtime",
+        "attendance_correction_requests",
+        "monthly_attendance_reports"
+      ],
+      "attendance_security": [
+        "QR codes must be time-limited or challenge-based to reduce screenshot reuse.",
+        "GPS attendance must be optional and require appropriate notice and lawful basis.",
+        "Biometric integration is a later phase and requires privacy, security and vendor review.",
+        "Every manual override must record actor, timestamp and reason."
+      ],
+      "leave_management": [
+        "configurable_leave_types",
+        "leave_balances",
+        "leave_application",
+        "approval_workflow",
+        "holiday_calendar",
+        "leave_history"
+      ],
+      "shift_management": [
+        "shift_templates",
+        "shift_assignments",
+        "department_rosters",
+        "shift_swaps",
+        "on_call_duty",
+        "overtime_approval"
+      ],
+      "payroll": [
+        "salary_components",
+        "salary_structures",
+        "effective_dated_salary_revisions",
+        "attendance_and_leave_inputs",
+        "earnings_and_deductions",
+        "payroll_periods",
+        "payroll_runs",
+        "approval_workflow",
+        "payslip_generation",
+        "payment_status_tracking",
+        "adjustment_entries",
+        "payroll_audit_history"
+      ],
+      "statutory_compliance": [
+        "configurable_epf_rules",
+        "configurable_eps_and_employer_contribution_rules",
+        "configurable_esi_rules",
+        "professional_tax_by_state",
+        "labour_welfare_fund_where_applicable",
+        "salary_tds",
+        "gratuity_tracking",
+        "effective_dates_and_rule_versions",
+        "statutory_reports"
+      ],
+      "payroll_safety": [
+        "Never hardcode contribution rates, wage ceilings, eligibility or statutory thresholds.",
+        "Store statutory rules with jurisdiction, effective_from, effective_to, source_reference and approval status.",
+        "Payroll calculations must be reproducible from stored input and rule versions.",
+        "Finalized payroll must be immutable; corrections use adjustment or reversal entries.",
+        "Require authorized review before payroll finalization and payment export.",
+        "Clearly distinguish calculated salary from actual bank payment."
+      ],
+      "employee_self_service": [
+        "view_own_profile_fields",
+        "view_attendance",
+        "apply_for_leave",
+        "view_shift_roster",
+        "download_own_payslips",
+        "view_salary_and_deduction_breakdown",
+        "request_attendance_correction"
+      ]
+    }
+  },
+  "technology_stack": {
+    "frontend": {
+      "framework": "Next.js",
+      "language": "JavaScript",
+      "ui": [
+        "React",
+        "Tailwind CSS",
+        "shadcn/ui"
+      ],
+      "data_fetching": "TanStack Query",
+      "forms": "React Hook Form",
+      "validation": "Zod",
+      "realtime": "WebSocket client",
+      "testing": [
+        "Vitest",
+        "React Testing Library",
+        "Playwright"
+      ]
+    },
+    "backend": {
+      "framework": "FastAPI",
+      "language": "Python",
+      "orm": "SQLAlchemy 2.x",
+      "migrations": "Alembic",
+      "validation": "Pydantic",
+      "authentication": "short_lived_access_tokens_and_rotating_refresh_sessions",
+      "api_style": "REST with versioned /api/v1 routes",
+      "background_jobs": "Celery",
+      "realtime": "FastAPI WebSockets"
+    },
+    "database": {
+      "primary": "PostgreSQL",
+      "cache_and_broker": "Redis",
+      "multi_tenancy": "shared_database_shared_schema_with_tenant_scoping_and_postgresql_row_level_security_as_defense_in_depth",
+      "migration_policy": "Alembic migrations only; never create production tables automatically at application startup"
+    },
+    "integrations": {
+      "whatsapp": "Meta WhatsApp Business Cloud API",
+      "sms_and_otp": "MSG91 or another replaceable provider adapter",
+      "file_storage": "S3-compatible object storage",
+      "payments_later": "Razorpay or another replaceable provider adapter",
+      "email": "configurable transactional email provider"
+    },
+    "devops": {
+      "containers": "Docker",
+      "local_or_codespaces_orchestration": "Docker Compose",
+      "ci_cd": "GitHub Actions",
+      "initial_deployment": "Managed container hosting and managed PostgreSQL; choose final provider after cost and compliance review",
+      "future_aws": [
+        "ECS",
+        "RDS PostgreSQL",
+        "ElastiCache",
+        "S3",
+        "CloudFront",
+        "CloudWatch"
+      ],
+      "observability": [
+        "structured_logs",
+        "error_tracking",
+        "metrics",
+        "audit_logs"
+      ]
+    }
+  },
+  "monorepo_structure": {
+    "root": [
+      "README.md",
+      "AGENTS.md",
+      ".gitignore",
+      ".env.example",
+      "docker-compose.yml",
+      "Makefile",
+      "docs/",
+      "scripts/",
+      "apps/",
+      "backend/",
+      "infrastructure/",
+      ".github/workflows/"
+    ],
+    "apps/web": [
+      "src/app/",
+      "src/components/",
+      "src/features/",
+      "src/lib/",
+      "src/services/",
+      "src/hooks/",
+      "src/styles/",
+      "public/",
+      "package.json",
+      "Dockerfile"
+    ],
+    "backend/app": [
+      "main.py",
+      "core/",
+      "api/v1/",
+      "modules/",
+      "integrations/",
+      "workers/",
+      "websocket/",
+      "tests/"
+    ],
+    "backend/module_convention": {
+      "module_files": [
+        "__init__.py",
+        "models.py",
+        "schemas.py",
+        "routes.py",
+        "service.py",
+        "repository.py",
+        "permissions.py"
+      ],
+      "note": "Use only files that are needed; keep business logic in services and database access in repositories."
+    }
+  },
+  "backend_modules": [
+    {
+      "name": "authentication",
+      "features": [
+        "login",
+        "logout",
+        "refresh_session",
+        "password_hashing",
+        "otp_verification",
+        "role_based_access",
+        "session_revocation"
+      ]
+    },
+    {
+      "name": "organizations",
+      "features": [
+        "tenant_creation",
+        "tenant_settings",
+        "subscription_metadata",
+        "tenant_status"
+      ]
+    },
+    {
+      "name": "branches",
+      "features": [
+        "clinic_branch_setup",
+        "branch_hours",
+        "branch_specific_qr",
+        "branch_settings"
+      ]
+    },
+    {
+      "name": "staff_access",
+      "features": [
+        "staff_users",
+        "roles",
+        "permissions",
+        "branch_assignments"
+      ]
+    },
+    {
+      "name": "contacts",
+      "features": [
+        "verified_phone_numbers",
+        "contact_preferences",
+        "contact_patient_links"
+      ]
+    },
+    {
+      "name": "patients",
+      "features": [
+        "patient_registration",
+        "patient_profile",
+        "patient_search",
+        "duplicate_review",
+        "profile_updates"
+      ]
+    },
+    {
+      "name": "family",
+      "features": [
+        "family_relationships",
+        "caregiver_authorization",
+        "patient_selection"
+      ]
+    },
+    {
+      "name": "consent",
+      "features": [
+        "privacy_notice_versions",
+        "consent_capture",
+        "channel_opt_in",
+        "withdrawal",
+        "consent_audit"
+      ]
+    },
+    {
+      "name": "doctors_and_departments",
+      "features": [
+        "doctor_profiles",
+        "department_management",
+        "availability"
+      ]
+    },
+    {
+      "name": "appointments",
+      "features": [
+        "booking",
+        "rescheduling",
+        "cancellation",
+        "appointment_status",
+        "walk_in_registration"
+      ]
+    },
+    {
+      "name": "queue",
+      "features": [
+        "check_in",
+        "queue_entry",
+        "token_generation",
+        "queue_status",
+        "priority_rules",
+        "live_updates"
+      ]
+    },
+    {
+      "name": "notifications",
+      "features": [
+        "sms",
+        "whatsapp_templates",
+        "delivery_logs",
+        "retry_policy",
+        "notification_preferences"
+      ]
+    },
+    {
+      "name": "whatsapp",
+      "features": [
+        "webhook_verification",
+        "incoming_message_handling",
+        "existing_patient_lookup",
+        "family_member_selection",
+        "conversation_state",
+        "booking_flow"
+      ]
+    },
+    {
+      "name": "hr_employees",
+      "features": [
+        "employee_records",
+        "departments",
+        "designations",
+        "documents",
+        "employment_history"
+      ]
+    },
+    {
+      "name": "hr_attendance",
+      "features": [
+        "check_in",
+        "check_out",
+        "qr_attendance",
+        "manual_adjustment",
+        "monthly_summary"
+      ]
+    },
+    {
+      "name": "hr_shifts",
+      "features": [
+        "shift_templates",
+        "rosters",
+        "assignments",
+        "swap_requests",
+        "overtime"
+      ]
+    },
+    {
+      "name": "hr_leave",
+      "features": [
+        "leave_types",
+        "leave_balances",
+        "applications",
+        "approvals",
+        "holiday_calendar"
+      ]
+    },
+    {
+      "name": "hr_payroll",
+      "features": [
+        "salary_structures",
+        "payroll_runs",
+        "earnings",
+        "deductions",
+        "payslips",
+        "payment_tracking",
+        "adjustments"
+      ]
+    },
+    {
+      "name": "hr_compliance",
+      "features": [
+        "effective_dated_rules",
+        "epf",
+        "esi",
+        "professional_tax",
+        "tds",
+        "gratuity",
+        "reports"
+      ]
+    },
+    {
+      "name": "audit",
+      "features": [
+        "security_events",
+        "sensitive_record_access",
+        "admin_actions",
+        "payroll_change_history"
+      ]
+    },
+    {
+      "name": "analytics",
+      "features": [
+        "patient_operations_metrics",
+        "queue_metrics",
+        "attendance_metrics",
+        "payroll_summary"
+      ]
+    }
+  ],
+  "roles_and_permissions": {
+    "platform_roles": [
+      "platform_super_admin",
+      "platform_support"
+    ],
+    "organization_roles": [
+      "organization_owner",
+      "organization_admin"
+    ],
+    "clinic_roles": [
+      "clinic_manager",
+      "receptionist",
+      "doctor",
+      "nurse",
+      "hr_manager",
+      "payroll_manager",
+      "department_manager",
+      "employee"
+    ],
+    "rules": [
+      "Enforce permissions on the backend; frontend hiding is not authorization.",
+      "Scope every request to the authenticated user's organization and permitted branches.",
+      "Employees may access only their own HR self-service records unless explicitly granted additional permissions.",
+      "HR roles must not automatically receive access to patient clinical information.",
+      "Receptionists must not access salary or employee PF/ESI records by default.",
+      "Payroll approval and payment permissions should be separable.",
+      "Platform support access to tenant data must be restricted, justified, logged and controlled."
+    ]
+  },
+  "data_model": {
+    "tenant_columns": [
+      "organization_id",
+      "branch_id_when_applicable"
+    ],
+    "core_entities": {
+      "organizations": [
+        "id",
+        "name",
+        "legal_name",
+        "status",
+        "timezone",
+        "created_at"
+      ],
+      "branches": [
+        "id",
+        "organization_id",
+        "name",
+        "address",
+        "timezone",
+        "status"
+      ],
+      "users": [
+        "id",
+        "organization_id",
+        "email",
+        "phone",
+        "password_hash",
+        "status"
+      ],
+      "roles": [
+        "id",
+        "organization_id",
+        "name"
+      ],
+      "user_role_assignments": [
+        "id",
+        "user_id",
+        "role_id",
+        "branch_id"
+      ],
+      "contacts": [
+        "id",
+        "organization_id",
+        "phone_e164",
+        "phone_verified_at"
+      ],
+      "patients": [
+        "id",
+        "organization_id",
+        "patient_number",
+        "full_name",
+        "date_of_birth",
+        "gender",
+        "status"
+      ],
+      "contact_patient_links": [
+        "id",
+        "organization_id",
+        "contact_id",
+        "patient_id",
+        "relationship",
+        "authorization_status"
+      ],
+      "consents": [
+        "id",
+        "organization_id",
+        "patient_id",
+        "purpose",
+        "channel",
+        "notice_version",
+        "status",
+        "captured_at",
+        "withdrawn_at"
+      ],
+      "departments": [
+        "id",
+        "organization_id",
+        "branch_id",
+        "name",
+        "status"
+      ],
+      "doctors": [
+        "id",
+        "organization_id",
+        "branch_id",
+        "user_id",
+        "department_id",
+        "display_name",
+        "status"
+      ],
+      "appointments": [
+        "id",
+        "organization_id",
+        "branch_id",
+        "patient_id",
+        "doctor_id",
+        "appointment_at",
+        "status",
+        "source"
+      ],
+      "queue_entries": [
+        "id",
+        "organization_id",
+        "branch_id",
+        "appointment_id",
+        "patient_id",
+        "queue_date",
+        "status",
+        "priority"
+      ],
+      "tokens": [
+        "id",
+        "organization_id",
+        "branch_id",
+        "queue_entry_id",
+        "token_number",
+        "issued_at"
+      ],
+      "employees": [
+        "id",
+        "organization_id",
+        "branch_id",
+        "employee_number",
+        "user_id",
+        "department_id",
+        "designation_id",
+        "joining_date",
+        "employment_status"
+      ],
+      "attendance_records": [
+        "id",
+        "organization_id",
+        "branch_id",
+        "employee_id",
+        "work_date",
+        "check_in_at",
+        "check_out_at",
+        "status",
+        "source"
+      ],
+      "leave_applications": [
+        "id",
+        "organization_id",
+        "employee_id",
+        "leave_type_id",
+        "start_date",
+        "end_date",
+        "status",
+        "approver_user_id"
+      ],
+      "shift_assignments": [
+        "id",
+        "organization_id",
+        "branch_id",
+        "employee_id",
+        "shift_id",
+        "work_date",
+        "status"
+      ],
+      "salary_structures": [
+        "id",
+        "organization_id",
+        "employee_id",
+        "effective_from",
+        "effective_to",
+        "currency",
+        "status"
+      ],
+      "payroll_runs": [
+        "id",
+        "organization_id",
+        "branch_id",
+        "period_start",
+        "period_end",
+        "status",
+        "rule_set_version",
+        "finalized_at"
+      ],
+      "payroll_items": [
+        "id",
+        "organization_id",
+        "payroll_run_id",
+        "employee_id",
+        "gross_earnings",
+        "total_deductions",
+        "net_pay",
+        "calculation_snapshot"
+      ],
+      "statutory_rules": [
+        "id",
+        "jurisdiction",
+        "rule_type",
+        "effective_from",
+        "effective_to",
+        "configuration_json",
+        "source_reference",
+        "approval_status"
+      ],
+      "audit_logs": [
+        "id",
+        "organization_id",
+        "actor_user_id",
+        "action",
+        "entity_type",
+        "entity_id",
+        "reason",
+        "created_at"
+      ]
+    },
+    "modeling_notes": [
+      "Use UUID primary keys.",
+      "Use numeric/decimal types for money, never floating point.",
+      "Store timestamps in UTC and retain the applicable organization/branch timezone.",
+      "Use explicit status enums or constrained strings with documented transitions.",
+      "Add unique constraints for tenant-scoped identifiers.",
+      "Add indexes for common tenant, patient, appointment, employee and date lookups.",
+      "Avoid storing unnecessary sensitive personal data.",
+      "Store documents in object storage and keep metadata and access controls in PostgreSQL."
+    ]
+  },
+  "api_conventions": {
+    "base_path": "/api/v1",
+    "format": "JSON",
+    "pagination": "cursor_or_limit_offset_with_consistent_maximum",
+    "errors": "consistent_error_envelope_with_machine_readable_code",
+    "idempotency": "Use idempotency keys for booking, token creation, webhook processing and payroll finalization where appropriate.",
+    "webhooks": "Verify provider signatures, deduplicate events and acknowledge quickly before asynchronous processing.",
+    "initial_endpoint_groups": [
+      "/auth",
+      "/organizations",
+      "/branches",
+      "/patients",
+      "/contacts",
+      "/family",
+      "/consents",
+      "/doctors",
+      "/departments",
+      "/appointments",
+      "/queue",
+      "/tokens",
+      "/notifications",
+      "/whatsapp/webhooks",
+      "/hr/employees",
+      "/hr/attendance",
+      "/hr/shifts",
+      "/hr/leaves",
+      "/hr/payroll",
+      "/hr/compliance",
+      "/audit"
+    ]
+  },
+  "security_and_compliance": {
+    "baseline": [
+      "HTTPS in all deployed environments.",
+      "Strong password hashing using Argon2id or an appropriately configured modern password hash.",
+      "Rate limiting for login, OTP and public registration endpoints.",
+      "CSRF protection where cookie-based authentication is used.",
+      "Secure, HttpOnly and SameSite cookie settings where applicable.",
+      "Secrets only through environment variables or a managed secret store.",
+      "Validate and authorize every object access to prevent IDOR.",
+      "Tenant isolation tests for every major module.",
+      "Audit sensitive reads and writes.",
+      "Encrypt backups and test restoration.",
+      "Define backup retention and disaster recovery objectives.",
+      "Use synthetic data in development and staging."
+    ],
+    "healthcare_data": [
+      "Apply least-privilege access to patient data.",
+      "Separate patient administrative data from clinical notes and records.",
+      "Do not put patient medical details in SMS or WhatsApp notifications by default.",
+      "Use generic notification content with secure portal links where possible.",
+      "Define retention, deletion, correction and access-request workflows with legal review."
+    ],
+    "payroll_data": [
+      "Restrict salary, bank and statutory identifiers to authorized HR/payroll roles.",
+      "Mask sensitive identifiers in UI and logs.",
+      "Never log OTPs, passwords, bank account details or full statutory identifiers.",
+      "Require approval and audit history for salary revisions and payroll finalization."
+    ],
+    "legal_review_required": [
+      "India DPDP Act and applicable rules and commencement dates.",
+      "Applicable clinical establishment and healthcare record obligations.",
+      "Current EPF, EPS, ESI, professional tax, TDS, gratuity and state-specific labour requirements.",
+      "WhatsApp Business Platform opt-in, templates and messaging policies.",
+      "Employment contracts, working-hour and leave rules for relevant jurisdictions."
+    ]
+  },
+  "github_codespaces": {
+    "recommended_machine": "2-core minimum for basic development; 4-core preferred when running frontend, backend, PostgreSQL and Redis together.",
+    "devcontainer": {
+      "file": ".devcontainer/devcontainer.json",
+      "features": [
+        "Node.js LTS",
+        "Python 3.12",
+        "Docker-in-Docker if supported by selected Codespaces configuration"
+      ],
+      "forward_ports": [
+        3000,
+        8000,
+        5432,
+        6379
+      ],
+      "post_create_command": "Install frontend and backend dependencies; do not run production migrations or seed real data automatically.",
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "ms-azuretools.vscode-docker",
+        "mtxr.sqltools"
+      ]
+    },
+    "local_services": [
+      "postgresql",
+      "redis"
+    ],
+    "environment_variables": [
+      "APP_ENV",
+      "APP_SECRET_KEY",
+      "DATABASE_URL",
+      "REDIS_URL",
+      "ACCESS_TOKEN_EXPIRE_MINUTES",
+      "REFRESH_TOKEN_EXPIRE_DAYS",
+      "FRONTEND_URL",
+      "WHATSAPP_ACCESS_TOKEN",
+      "WHATSAPP_PHONE_NUMBER_ID",
+      "WHATSAPP_VERIFY_TOKEN",
+      "MSG91_AUTH_KEY",
+      "MSG91_SENDER_ID",
+      "S3_BUCKET",
+      "AWS_REGION"
+    ],
+    "secret_handling": [
+      "Commit .env.example with placeholder values only.",
+      "Never commit .env or real credentials.",
+      "Use GitHub Codespaces Secrets for development credentials.",
+      "Use managed secret storage in production."
+    ]
+  },
+  "testing_strategy": {
+    "backend": [
+      "pytest",
+      "httpx test client",
+      "database integration tests"
+    ],
+    "frontend": [
+      "Vitest",
+      "React Testing Library",
+      "Playwright"
+    ],
+    "critical_test_scenarios": [
+      "Tenant A cannot read or modify Tenant B data.",
+      "One phone contact can be linked to multiple separate patient profiles.",
+      "WhatsApp booking rejects contacts without an existing patient profile.",
+      "WhatsApp booking asks which authorized family patient is being booked.",
+      "Unregistered family members are redirected to portal/reception.",
+      "Duplicate webhook events do not create duplicate appointments or tokens.",
+      "Concurrent bookings do not issue duplicate tokens within the same queue scope.",
+      "Consent withdrawal updates future communication eligibility.",
+      "Receptionist cannot access payroll data without permission.",
+      "Employee can view only their own payslips.",
+      "Attendance adjustments require authorization and audit reason.",
+      "Payroll calculation is reproducible from stored inputs and rule version.",
+      "Finalized payroll cannot be silently edited."
+    ]
+  },
+  "delivery_roadmap": [
+    {
+      "phase": 0,
+      "name": "Architecture and repository foundation",
+      "deliverables": [
+        "repository",
+        "AGENTS.md",
+        "README",
+        "devcontainer",
+        "docker compose",
+        "architecture decision records"
+      ]
+    },
+    {
+      "phase": 1,
+      "name": "Application foundation",
+      "deliverables": [
+        "Next.js app",
+        "FastAPI app",
+        "PostgreSQL connection",
+        "Redis connection",
+        "health endpoints",
+        "CI checks"
+      ]
+    },
+    {
+      "phase": 2,
+      "name": "Tenant authentication and authorization",
+      "deliverables": [
+        "organizations",
+        "branches",
+        "users",
+        "roles",
+        "permissions",
+        "tenant isolation tests"
+      ]
+    },
+    {
+      "phase": 3,
+      "name": "Patient registration",
+      "deliverables": [
+        "clinic QR landing page",
+        "OTP provider adapter",
+        "patient profile",
+        "contact links",
+        "family member selection"
+      ]
+    },
+    {
+      "phase": 4,
+      "name": "Consent and privacy",
+      "deliverables": [
+        "notice versions",
+        "consent records",
+        "communication preferences",
+        "withdrawal workflow",
+        "audit trail"
+      ]
+    },
+    {
+      "phase": 5,
+      "name": "Appointments and queue",
+      "deliverables": [
+        "doctor schedules",
+        "appointments",
+        "walk-in registration",
+        "check-in",
+        "transactional token generation",
+        "live queue"
+      ]
+    },
+    {
+      "phase": 6,
+      "name": "WhatsApp and SMS",
+      "deliverables": [
+        "WhatsApp webhook",
+        "existing-patient lookup",
+        "family selection flow",
+        "booking flow",
+        "message templates",
+        "SMS fallback"
+      ]
+    },
+    {
+      "phase": 7,
+      "name": "Clinic dashboard",
+      "deliverables": [
+        "patient search",
+        "appointment management",
+        "queue board",
+        "receptionist workflow",
+        "reports"
+      ]
+    },
+    {
+      "phase": 8,
+      "name": "Employee management",
+      "deliverables": [
+        "employee profiles",
+        "departments",
+        "designations",
+        "documents",
+        "employee permissions"
+      ]
+    },
+    {
+      "phase": 9,
+      "name": "Attendance, shifts and leave",
+      "deliverables": [
+        "attendance",
+        "QR check-in",
+        "manual correction",
+        "shift rosters",
+        "leave approval"
+      ]
+    },
+    {
+      "phase": 10,
+      "name": "Payroll foundation",
+      "deliverables": [
+        "salary structures",
+        "payroll periods",
+        "earnings and deductions",
+        "approval workflow",
+        "payslips"
+      ]
+    },
+    {
+      "phase": 11,
+      "name": "Statutory payroll",
+      "deliverables": [
+        "effective-dated rule configuration",
+        "PF",
+        "ESI",
+        "professional tax",
+        "TDS",
+        "gratuity tracking",
+        "professional validation"
+      ]
+    },
+    {
+      "phase": 12,
+      "name": "Employee self-service and analytics",
+      "deliverables": [
+        "employee portal",
+        "own payslips",
+        "leave requests",
+        "workforce analytics"
+      ]
+    },
+    {
+      "phase": 13,
+      "name": "Production readiness",
+      "deliverables": [
+        "security review",
+        "load tests",
+        "backup restore test",
+        "monitoring",
+        "deployment",
+        "operational runbooks"
+      ]
+    }
+  ],
+  "coding_agent_instructions": {
+    "role": "Act as a senior full-stack engineer and security-conscious SaaS architect.",
+    "workflow": [
+      "Read this project specification and AGENTS.md before making changes.",
+      "Work phase by phase; do not attempt to generate the entire platform in one pass.",
+      "First inspect the repository and report the current state.",
+      "For each phase, propose a concise implementation plan and list files to be created or changed.",
+      "Implement only the approved phase and keep the application runnable.",
+      "Create migrations and tests with every backend schema or business-rule change.",
+      "Run relevant tests, linting and build commands before declaring a phase complete.",
+      "Document setup commands, environment variables and API behavior.",
+      "Do not invent credentials, provider IDs, statutory rates or legal requirements.",
+      "Use provider adapters so SMS, WhatsApp, email and storage vendors can be changed.",
+      "If a requirement is ambiguous or affects patient safety, privacy, payroll correctness or legal compliance, ask before implementing."
+    ],
+    "first_task": "Implement Phase 0 only: inspect the empty or existing repository, create the monorepo skeleton, .devcontainer configuration, Docker Compose for PostgreSQL and Redis, .env.example, README.md, AGENTS.md, and initial architecture documents. Do not implement patient, appointment, HR or payroll business features in Phase 0.",
+    "definition_of_done": [
+      "Codespace opens successfully.",
+      "Frontend and backend development commands are documented.",
+      "PostgreSQL and Redis start through Docker Compose.",
+      "No secrets are committed.",
+      "README and AGENTS instructions are complete.",
+      "CI workflow validates formatting/linting and basic tests when apps are added."
+    ]
+  }
+}

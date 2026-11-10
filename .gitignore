@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+
+# Builds and coverage
+dist/
+build/
+coverage/
+playwright-report/
+test-results/
+
+# Environment and secrets: never commit real values
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Local data dumps: never commit patient or employee data
+*.sql.gz
+*.dump
