@@ -45,6 +45,7 @@ import {
 } from '@/features/clinic/QueuePages';
 import { MessagingPage } from '@/features/integrations/MessagingPage';
 import { MessagesPage, MyMessagesPage } from '@/features/messages/MessagesPages';
+import { AnalyticsPage } from '@/features/analytics/AnalyticsPage';
 import { Spinner } from '@/components/ui';
 import { AppLayout } from './AppLayout';
 
@@ -375,6 +376,18 @@ export function App() {
           element={
             <RequirePermission allow={(a) => Boolean(a.me.employee)}>
               <MyMessagesPage />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="analytics"
+          element={
+            <RequirePermission
+              allow={(a) =>
+                a.can('appointments.read') || (a.can('employees.read') && a.can('attendance.read'))
+              }
+            >
+              <AnalyticsPage />
             </RequirePermission>
           }
         />

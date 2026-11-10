@@ -5,6 +5,7 @@ import { createRedis } from './core/redis.js';
 import { createRedisStore } from './core/rate-limit.js';
 import { createApp } from './app.js';
 import { createSmsSender } from './integrations/sms/index.js';
+import { createWhatsAppSender } from './integrations/whatsapp/index.js';
 
 const config = loadConfig();
 const logger = createLogger(config);
@@ -20,11 +21,22 @@ if (sms.provider === 'none') {
   );
 }
 
+const whatsapp = createWhatsAppSender(config);
+if (whatsapp.provider === 'none') {
+  logger.info(
+    { reason: whatsapp.reason },
+    'WhatsApp is off: booking on WhatsApp and WhatsApp confirmations are unavailable',
+  );
+} else if (!config.WHATSAPP_APP_SECRET) {
+  logger.warn('WHATSAPP_APP_SECRET is not set: incoming WhatsApp webhooks will be rejected');
+}
+
 const app = createApp({
   config,
   logger,
   db,
   sms,
+  whatsapp,
   rateLimitStore: createRedisStore(redis),
   checks: {
     postgres: () => db.raw('select 1'),
@@ -59,7 +71,13 @@ const server = app.listen(config.API_PORT, () => {
 
 async function shutdown(signal) {
   logger.info({ signal }, 'shutting down');
+  // Stop taking requests, let in-flight notifications and WhatsApp replies finish (max 10 s).
   server.close();
+  const drained = Promise.allSettled([
+    app.locals.whatsappProcessor?.drain(),
+    app.locals.notifier?.drain(),
+  ]);
+  await Promise.race([drained, new Promise((r) => setTimeout(r, 10_000).unref())]);
   await Promise.allSettled([db.destroy(), redis.quit()]);
   process.exit(0);
 }

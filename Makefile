@@ -1,4 +1,4 @@
-.PHONY: help setup up down logs ps dev dev-api dev-web migrate rollback test lint format
+.PHONY: help setup up down logs ps dev dev-api dev-web dev-patient seed migrate rollback test lint format
 
 help: ## List available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-10s %s\n", $$1, $$2}'
@@ -19,14 +19,20 @@ logs: ## Follow service logs
 ps: ## Show service status
 	docker compose ps
 
-dev: ## Run API and web together
+dev: ## Run the API, staff app and patient website together
 	npm run dev
 
 dev-api: ## Run the API only
 	npm run dev:api
 
-dev-web: ## Run the web app only
+dev-web: ## Run the staff/employee app only
 	npm run dev:web
+
+dev-patient: ## Run the patient website only
+	npm run dev:patient
+
+seed: ## Create a demo hospital with fictional data
+	npm run seed:demo
 
 migrate: ## Apply database migrations (development database)
 	npm run db:migrate

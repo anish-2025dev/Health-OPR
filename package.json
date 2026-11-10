@@ -23,7 +23,8 @@
     "db:migrate": "npm run db:migrate --workspace apps/api",
     "db:rollback": "npm run db:rollback --workspace apps/api",
     "db:make": "npm run db:make --workspace apps/api --",
-    "dev:patient": "npm run dev:patient --workspace apps/web"
+    "dev:patient": "npm run dev:patient --workspace apps/web",
+    "seed:demo": "npm run seed:demo --workspace apps/api --"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

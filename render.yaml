@@ -121,6 +121,10 @@ services:
         name: Permissions-Policy
         # Geolocation is allowed for this site only: employees need it to mark attendance.
         value: camera=(), microphone=(), geolocation=(self)
+      # Only this site's own scripts and the same-origin API; QR images are data: URLs.
+      - path: /*
+        name: Content-Security-Policy
+        value: "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
       - path: /assets/*
         name: Cache-Control
         value: public, max-age=31536000, immutable
@@ -170,6 +174,10 @@ services:
       - path: /*
         name: Permissions-Policy
         value: camera=(), microphone=(), geolocation=()
+      # Only this site's own scripts and the same-origin API; QR images are data: URLs.
+      - path: /*
+        name: Content-Security-Policy
+        value: "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
       - path: /assets/*
         name: Cache-Control
         value: public, max-age=31536000, immutable

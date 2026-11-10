@@ -21,6 +21,12 @@ const NAV = [
   },
   { to: '/clinic', label: 'Clinic today', permission: 'appointments.read' },
   {
+    to: '/analytics',
+    label: 'Analytics',
+    show: (a) =>
+      a.can('appointments.read') || (a.can('employees.read') && a.can('attendance.read')),
+  },
+  {
     to: '/reception',
     label: 'Reception & queue',
     permission: 'queue.manage',

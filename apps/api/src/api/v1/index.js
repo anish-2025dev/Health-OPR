@@ -26,6 +26,7 @@ import { leaveRouter, selfLeaveRouter } from '../../modules/hr-leave/routes.js';
 import { payrollRouter, selfPayslipRouter } from '../../modules/hr-payroll/routes.js';
 import { statutoryRouter } from '../../modules/hr-statutory/routes.js';
 import { messagesRouter, selfMessagesRouter } from '../../modules/messages/index.js';
+import { analyticsRouter } from '../../modules/analytics/index.js';
 import { patientsRouter } from '../../modules/patients/routes.js';
 import { privacyRouter } from '../../modules/patients/privacy.routes.js';
 import { portalRouter } from '../../modules/patients/portal.routes.js';
@@ -106,6 +107,7 @@ export function apiV1Router({ app, config, checks, db, rateLimitStore, sms, what
   router.use('/payroll/statutory', authenticate, statutoryRouter({ db }));
   router.use('/payroll', authenticate, payrollRouter({ db }));
   router.use('/patients', authenticate, patientsRouter({ db }));
+  router.use('/analytics', authenticate, analyticsRouter({ db }));
   router.use('/privacy', authenticate, privacyRouter({ db }));
   router.use('/doctors', authenticate, doctorsRouter({ db }));
   router.use('/appointments', authenticate, appointmentsRouter({ db, notifier }));
