@@ -403,7 +403,19 @@ export function PatientDetailPage() {
         description={`${p.patientNumber} · ${age(p.dateOfBirth) ?? '—'} years · ${
           p.gender ? GENDER_LABEL[p.gender] : 'gender not recorded'
         }`}
-        actions={<Badge tone={STATUS_TONE[p.status]}>{p.status}</Badge>}
+        actions={
+          <div className="flex items-center gap-2">
+            <Badge tone={STATUS_TONE[p.status]}>{p.status}</Badge>
+            {p.status === 'active' && auth.can('appointments.manage') && (
+              <Link
+                to={`/reception?patientId=${p.id}`}
+                className="rounded-lg bg-brand-700 px-3 py-2 text-sm font-medium text-white"
+              >
+                Book / walk-in
+              </Link>
+            )}
+          </div>
+        }
       />
       {p.status === 'merged' && (
         <div className="mb-4">
@@ -576,6 +588,7 @@ export function PatientDetailPage() {
           )}
         </Card>
 
+        {auth.can('appointments.read') && <Visits patientId={p.id} />}
         {canManage && (
           <Card title="Privacy request">
             <p className="mb-3 text-sm text-slate-600">
@@ -622,5 +635,35 @@ export function PatientDetailPage() {
         )}
       </div>
     </>
+  );
+}
+
+const VISIT_TONE = { completed: 'green', no_show: 'red', cancelled: 'red', booked: 'slate' };
+
+function Visits({ patientId }) {
+  const visits = useQuery({
+    queryKey: ['visits', patientId],
+    queryFn: () => apiFetch(`/queue/visits?patientId=${patientId}`),
+  });
+  return (
+    <Card title="Visits">
+      <ErrorMessage error={visits.error} />
+      {visits.isPending && <Spinner />}
+      {visits.data?.data.length === 0 && <p className="text-sm text-slate-500">No visits yet.</p>}
+      <ul className="divide-y divide-slate-100 text-sm">
+        {visits.data?.data.map((v) => (
+          <li key={v.id} className="flex items-center justify-between gap-2 py-2">
+            <span>
+              {formatDate(v.date)} · {v.doctorName}
+              <span className="block text-xs text-slate-500">
+                Token {v.token} · {v.kind === 'walk_in' ? 'walk-in' : 'appointment'} ·{' '}
+                {v.branchName}
+              </span>
+            </span>
+            <Badge tone={VISIT_TONE[v.status] ?? 'amber'}>{v.status.replace('_', ' ')}</Badge>
+          </li>
+        ))}
+      </ul>
+    </Card>
   );
 }

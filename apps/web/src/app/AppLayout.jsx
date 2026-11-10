@@ -12,7 +12,21 @@ const NAV = [
   { to: '/my-attendance', label: 'My attendance', show: (a) => Boolean(a.me.employee) },
   { to: '/my-leave', label: 'My leave', show: (a) => Boolean(a.me.employee) },
   { to: '/my-payslips', label: 'My payslips', show: (a) => Boolean(a.me.employee) },
+  { to: '/clinic', label: 'Clinic today', permission: 'appointments.read' },
+  {
+    to: '/reception',
+    label: 'Reception & queue',
+    permission: 'queue.manage',
+    show: (a) => a.can('appointments.manage'),
+  },
+  {
+    to: '/reception',
+    label: 'My queue',
+    permission: 'queue.manage',
+    show: (a) => !a.can('appointments.manage'),
+  },
   { to: '/patients', label: 'Patients', permission: 'patients.read' },
+  { to: '/doctors', label: 'Doctors', permission: 'appointments.read' },
   { to: '/privacy', label: 'Patient privacy', permission: 'patients.manage' },
   { to: '/attendance', label: 'Attendance', permission: 'attendance.read' },
   {
@@ -55,7 +69,7 @@ export function AppLayout() {
         <nav aria-label="Main" className="flex gap-1 overflow-x-auto px-3 pb-3 md:flex-col">
           {links.map((item) => (
             <NavLink
-              key={item.to}
+              key={`${item.to}-${item.label}`}
               to={item.to}
               end={item.end}
               className={({ isActive }) =>

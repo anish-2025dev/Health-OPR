@@ -33,6 +33,11 @@ export const PERMISSIONS = Object.freeze({
   PATIENTS_READ: 'patients.read',
   PATIENTS_MANAGE: 'patients.manage', // register, edit, link contacts, record consent
   PRIVACY_MANAGE: 'privacy.manage', // privacy notices, duplicate review, data principal requests
+  // Phases 5 + 7: doctors, appointments and the queue.
+  DOCTORS_MANAGE: 'doctors.manage', // doctor profiles, weekly schedules, time off
+  APPOINTMENTS_READ: 'appointments.read',
+  APPOINTMENTS_MANAGE: 'appointments.manage', // book, cancel, walk-ins, any queue in branch scope
+  QUEUE_MANAGE: 'queue.manage', // check in, call, start, complete (doctors: their own queue only)
 });
 
 const ALL = Object.values(PERMISSIONS);
@@ -57,6 +62,10 @@ export const ROLES = Object.freeze({
       P.PATIENTS_READ,
       P.PATIENTS_MANAGE,
       P.PRIVACY_MANAGE,
+      P.DOCTORS_MANAGE,
+      P.APPOINTMENTS_READ,
+      P.APPOINTMENTS_MANAGE,
+      P.QUEUE_MANAGE,
     ],
   },
   hr_manager: {
@@ -97,10 +106,36 @@ export const ROLES = Object.freeze({
   // HR and payroll roles above get no patient permissions (spec).
   receptionist: {
     label: 'Receptionist',
-    permissions: [P.BRANCHES_READ, P.HOLIDAYS_READ, P.PATIENTS_READ, P.PATIENTS_MANAGE],
+    permissions: [
+      P.BRANCHES_READ,
+      P.HOLIDAYS_READ,
+      P.PATIENTS_READ,
+      P.PATIENTS_MANAGE,
+      P.APPOINTMENTS_READ,
+      P.APPOINTMENTS_MANAGE,
+      P.QUEUE_MANAGE,
+    ],
   },
-  doctor: { label: 'Doctor', permissions: [P.BRANCHES_READ, P.HOLIDAYS_READ, P.PATIENTS_READ] },
-  nurse: { label: 'Nurse', permissions: [P.BRANCHES_READ, P.HOLIDAYS_READ, P.PATIENTS_READ] },
+  doctor: {
+    label: 'Doctor',
+    permissions: [
+      P.BRANCHES_READ,
+      P.HOLIDAYS_READ,
+      P.PATIENTS_READ,
+      P.APPOINTMENTS_READ,
+      P.QUEUE_MANAGE,
+    ],
+  },
+  nurse: {
+    label: 'Nurse',
+    permissions: [
+      P.BRANCHES_READ,
+      P.HOLIDAYS_READ,
+      P.PATIENTS_READ,
+      P.APPOINTMENTS_READ,
+      P.QUEUE_MANAGE,
+    ],
+  },
   employee: { label: 'Employee', permissions: [P.HOLIDAYS_READ] },
 });
 

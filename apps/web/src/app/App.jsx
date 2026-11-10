@@ -37,6 +37,13 @@ import {
 } from '@/features/patients/PatientsPages';
 import { PrivacyPage } from '@/features/patients/PrivacyPage';
 import { ClinicPortalPage } from '@/features/portal/ClinicPortalPage';
+import { DoctorsPage } from '@/features/clinic/DoctorsPage';
+import {
+  ClinicDashboardPage,
+  QueueDisplayPage,
+  ReceptionPage,
+  TrackPage,
+} from '@/features/clinic/QueuePages';
 import { Spinner } from '@/components/ui';
 import { AppLayout } from './AppLayout';
 
@@ -62,6 +69,14 @@ function HomeRoute() {
   return <DashboardPage />;
 }
 
+/** Full-screen pages (waiting-room display) that need a signed-in user but no navigation. */
+function RequireAuthBare({ children }) {
+  const auth = useAuth();
+  if (auth.status === 'loading') return <Spinner />;
+  if (auth.status === 'anonymous') return <Navigate to="/login" replace />;
+  return children;
+}
+
 function RequireAuth() {
   const auth = useAuth();
   const location = useLocation();
@@ -85,6 +100,15 @@ export function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/employee-login" element={<EmployeeLoginPage />} />
       <Route path="/clinic/:slug" element={<ClinicPortalPage />} />
+      <Route path="/track/:code" element={<TrackPage />} />
+      <Route
+        path="/queue-display/:doctorId"
+        element={
+          <RequireAuthBare>
+            <QueueDisplayPage />
+          </RequireAuthBare>
+        }
+      />
       <Route element={<RequireAuth />}>
         <Route index element={<HomeRoute />} />
         <Route
@@ -289,6 +313,30 @@ export function App() {
           element={
             <RequirePermission permission="patients.read">
               <PatientDetailPage />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="doctors"
+          element={
+            <RequirePermission permission="appointments.read">
+              <DoctorsPage />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="reception"
+          element={
+            <RequirePermission permission="queue.manage">
+              <ReceptionPage />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="clinic"
+          element={
+            <RequirePermission permission="appointments.read">
+              <ClinicDashboardPage />
             </RequirePermission>
           }
         />

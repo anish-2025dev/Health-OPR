@@ -21,6 +21,12 @@ import { statutoryRouter } from '../../modules/hr-statutory/routes.js';
 import { patientsRouter } from '../../modules/patients/routes.js';
 import { privacyRouter } from '../../modules/patients/privacy.routes.js';
 import { portalRouter } from '../../modules/patients/portal.routes.js';
+import {
+  appointmentsRouter,
+  doctorsRouter,
+  queueRouter,
+  trackingRouter,
+} from '../../modules/clinic/routes.js';
 
 /**
  * Versioned API surface mounted at /api/v1. Each module exposes a router that is mounted here.
@@ -70,6 +76,11 @@ export function apiV1Router({ config, checks, db, rateLimitStore, sms, logger })
   router.use('/payroll', authenticate, payrollRouter({ db }));
   router.use('/patients', authenticate, patientsRouter({ db }));
   router.use('/privacy', authenticate, privacyRouter({ db }));
+  router.use('/doctors', authenticate, doctorsRouter({ db }));
+  router.use('/appointments', authenticate, appointmentsRouter({ db }));
+  router.use('/queue', authenticate, queueRouter({ db }));
+  // Patient's live queue link (token, position and estimate only).
+  router.use('/public/track', trackingRouter({ db, rateLimitStore: limiterStore }));
   // Public clinic portal (QR landing page): no staff login; uses its own phone-verified token.
   router.use(
     '/public/clinics',
