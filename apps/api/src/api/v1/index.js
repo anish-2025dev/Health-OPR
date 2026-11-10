@@ -18,6 +18,9 @@ import { attendanceRouter, selfAttendanceRouter } from '../../modules/hr-attenda
 import { leaveRouter, selfLeaveRouter } from '../../modules/hr-leave/routes.js';
 import { payrollRouter, selfPayslipRouter } from '../../modules/hr-payroll/routes.js';
 import { statutoryRouter } from '../../modules/hr-statutory/routes.js';
+import { patientsRouter } from '../../modules/patients/routes.js';
+import { privacyRouter } from '../../modules/patients/privacy.routes.js';
+import { portalRouter } from '../../modules/patients/portal.routes.js';
 
 /**
  * Versioned API surface mounted at /api/v1. Each module exposes a router that is mounted here.
@@ -32,7 +35,9 @@ export function apiV1Router({ config, checks, db, rateLimitStore, sms, logger })
   const tokens = createTokenService(config);
   const authService = createAuthService({ db, config, tokens });
   const authenticate = authenticateMiddleware({ tokens, authService });
-  const otp = createOtpService({ db, config, sms: sms ?? createSmsSender(config, { logger }) });
+  const smsSender = sms ?? createSmsSender(config, { logger });
+  const otp = createOtpService({ db, config, sms: smsSender });
+  const limiterStore = rateLimitStore ?? createMemoryStore();
   const employeeLogin = createEmployeeLogin({ db, otp, authService });
 
   router.use(
@@ -41,7 +46,7 @@ export function apiV1Router({ config, checks, db, rateLimitStore, sms, logger })
       config,
       authService,
       authenticate,
-      rateLimitStore: rateLimitStore ?? createMemoryStore(),
+      rateLimitStore: limiterStore,
       employeeLogin,
     }),
   );
@@ -63,6 +68,13 @@ export function apiV1Router({ config, checks, db, rateLimitStore, sms, logger })
   router.use('/leave', authenticate, leaveRouter({ db }));
   router.use('/payroll/statutory', authenticate, statutoryRouter({ db }));
   router.use('/payroll', authenticate, payrollRouter({ db }));
+  router.use('/patients', authenticate, patientsRouter({ db }));
+  router.use('/privacy', authenticate, privacyRouter({ db }));
+  // Public clinic portal (QR landing page): no staff login; uses its own phone-verified token.
+  router.use(
+    '/public/clinics',
+    portalRouter({ db, config, sms: smsSender, rateLimitStore: limiterStore }),
+  );
 
   return router;
 }

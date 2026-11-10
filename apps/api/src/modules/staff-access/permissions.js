@@ -29,6 +29,10 @@ export const PERMISSIONS = Object.freeze({
   PAYROLL_MANAGE: 'payroll.manage', // components, structures, policies, runs, adjustments
   PAYROLL_APPROVE: 'payroll.approve', // approve (finalize) a run
   PAYROLL_PAY: 'payroll.pay', // record payment status
+  // Phases 3–4: patients (administrative data only; no clinical records) and privacy.
+  PATIENTS_READ: 'patients.read',
+  PATIENTS_MANAGE: 'patients.manage', // register, edit, link contacts, record consent
+  PRIVACY_MANAGE: 'privacy.manage', // privacy notices, duplicate review, data principal requests
 });
 
 const ALL = Object.values(PERMISSIONS);
@@ -50,6 +54,9 @@ export const ROLES = Object.freeze({
       P.EMPLOYEES_READ,
       P.ATTENDANCE_READ,
       P.LEAVE_READ,
+      P.PATIENTS_READ,
+      P.PATIENTS_MANAGE,
+      P.PRIVACY_MANAGE,
     ],
   },
   hr_manager: {
@@ -87,9 +94,13 @@ export const ROLES = Object.freeze({
     permissions: [P.BRANCHES_READ, P.HOLIDAYS_READ],
   },
   // Clinical/front-desk roles: no employee records (spec: no salary/PF/ESI access by default).
-  receptionist: { label: 'Receptionist', permissions: [P.BRANCHES_READ, P.HOLIDAYS_READ] },
-  doctor: { label: 'Doctor', permissions: [P.BRANCHES_READ, P.HOLIDAYS_READ] },
-  nurse: { label: 'Nurse', permissions: [P.BRANCHES_READ, P.HOLIDAYS_READ] },
+  // HR and payroll roles above get no patient permissions (spec).
+  receptionist: {
+    label: 'Receptionist',
+    permissions: [P.BRANCHES_READ, P.HOLIDAYS_READ, P.PATIENTS_READ, P.PATIENTS_MANAGE],
+  },
+  doctor: { label: 'Doctor', permissions: [P.BRANCHES_READ, P.HOLIDAYS_READ, P.PATIENTS_READ] },
+  nurse: { label: 'Nurse', permissions: [P.BRANCHES_READ, P.HOLIDAYS_READ, P.PATIENTS_READ] },
   employee: { label: 'Employee', permissions: [P.HOLIDAYS_READ] },
 });
 

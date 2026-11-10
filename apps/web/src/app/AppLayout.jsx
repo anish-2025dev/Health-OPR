@@ -12,6 +12,8 @@ const NAV = [
   { to: '/my-attendance', label: 'My attendance', show: (a) => Boolean(a.me.employee) },
   { to: '/my-leave', label: 'My leave', show: (a) => Boolean(a.me.employee) },
   { to: '/my-payslips', label: 'My payslips', show: (a) => Boolean(a.me.employee) },
+  { to: '/patients', label: 'Patients', permission: 'patients.read' },
+  { to: '/privacy', label: 'Patient privacy', permission: 'patients.manage' },
   { to: '/attendance', label: 'Attendance', permission: 'attendance.read' },
   {
     to: '/leave',

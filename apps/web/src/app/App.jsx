@@ -30,6 +30,13 @@ import {
   RegularizationsPage,
   TeamAttendancePage,
 } from '@/features/attendance/AdminAttendancePages';
+import {
+  PatientDetailPage,
+  PatientsPage,
+  RegisterPatientPage,
+} from '@/features/patients/PatientsPages';
+import { PrivacyPage } from '@/features/patients/PrivacyPage';
+import { ClinicPortalPage } from '@/features/portal/ClinicPortalPage';
 import { Spinner } from '@/components/ui';
 import { AppLayout } from './AppLayout';
 
@@ -77,6 +84,7 @@ export function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/employee-login" element={<EmployeeLoginPage />} />
+      <Route path="/clinic/:slug" element={<ClinicPortalPage />} />
       <Route element={<RequireAuth />}>
         <Route index element={<HomeRoute />} />
         <Route
@@ -257,6 +265,38 @@ export function App() {
           element={
             <RequirePermission permission="org_structure.manage">
               <CompanySetupPage />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="patients"
+          element={
+            <RequirePermission permission="patients.read">
+              <PatientsPage />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="patients/new"
+          element={
+            <RequirePermission permission="patients.manage">
+              <RegisterPatientPage />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="patients/:id"
+          element={
+            <RequirePermission permission="patients.read">
+              <PatientDetailPage />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="privacy"
+          element={
+            <RequirePermission permission="patients.manage">
+              <PrivacyPage />
             </RequirePermission>
           }
         />

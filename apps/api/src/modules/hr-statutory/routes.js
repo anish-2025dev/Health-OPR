@@ -206,13 +206,11 @@ export function statutoryRouter({ db }) {
           `An approved version from ${overlap.effective_from} is still in force. End it the day before ${rule.effective_from} first.`,
         );
       }
-      await trx('statutory_rules')
-        .where({ id: rule.id })
-        .update({
-          approval_status: 'approved',
-          approved_by_user_id: req.auth.userId,
-          approved_at: trx.fn.now(),
-        });
+      await trx('statutory_rules').where({ id: rule.id }).update({
+        approval_status: 'approved',
+        approved_by_user_id: req.auth.userId,
+        approved_at: trx.fn.now(),
+      });
       await recordAudit(trx, {
         ...auditContext(req),
         action: 'statutory.rule_approved',
