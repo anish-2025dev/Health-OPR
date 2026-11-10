@@ -43,6 +43,7 @@ import {
   ReceptionPage,
   TrackPage,
 } from '@/features/clinic/QueuePages';
+import { MessagingPage } from '@/features/integrations/MessagingPage';
 import { Spinner } from '@/components/ui';
 import { AppLayout } from './AppLayout';
 
@@ -343,6 +344,14 @@ export function App() {
           element={
             <RequirePermission permission="patients.manage">
               <PrivacyPage />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="messaging"
+          element={
+            <RequirePermission permission="organization.manage">
+              <MessagingPage />
             </RequirePermission>
           }
         />

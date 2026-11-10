@@ -5,9 +5,13 @@ import pino from 'pino';
 export const REDACT_PATHS = [
   'req.headers.authorization',
   'req.headers.cookie',
+  'req.headers["x-hub-signature-256"]',
   'res.headers["set-cookie"]',
   '*.password',
   '*.otp',
+  '*.code',
+  '*.trackingCode',
+  '*.verifyToken',
   '*.token',
   '*.accessToken',
   '*.refreshToken',

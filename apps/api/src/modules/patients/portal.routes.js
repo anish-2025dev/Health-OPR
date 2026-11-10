@@ -55,7 +55,7 @@ const registerSchema = z
   })
   .strict();
 
-export function portalRouter({ db, rateLimitStore, authenticatePatient }) {
+export function portalRouter({ db, rateLimitStore, authenticatePatient, notifier }) {
   const router = Router();
 
   async function findOrg(slug) {
@@ -432,6 +432,7 @@ export function portalRouter({ db, rateLimitStore, authenticatePatient }) {
       };
     });
     const { replayed, ...appointment } = result;
+    if (!replayed) notifier?.appointmentBooked(org.id, appointment.id);
     res.status(replayed ? 200 : 201).json(appointment);
   });
 

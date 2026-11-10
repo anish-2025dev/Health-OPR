@@ -16,7 +16,7 @@ import { errorHandler, notFoundHandler, requestId } from './core/middleware.js';
  *   rateLimitStore?: { increment(key: string, windowSec: number): Promise<number> },
  * }} deps
  */
-export function createApp({ config, logger, checks, db, rateLimitStore, sms }) {
+export function createApp({ config, logger, checks, db, rateLimitStore, sms, whatsapp }) {
   const app = express();
 
   app.disable('x-powered-by');
@@ -42,7 +42,15 @@ export function createApp({ config, logger, checks, db, rateLimitStore, sms }) {
       credentials: true,
     }),
   );
-  app.use(express.json({ limit: '1mb' }));
+  app.use(
+    express.json({
+      limit: '1mb',
+      // Webhook signatures are computed over the exact bytes received.
+      verify: (req, res, buf) => {
+        if (req.originalUrl.startsWith('/api/v1/webhooks/')) req.rawBody = buf;
+      },
+    }),
+  );
   app.use(cookieParser());
   // Authenticated API responses must never be cached by browsers or proxies.
   app.use('/api/v1', (req, res, next) => {
@@ -50,7 +58,10 @@ export function createApp({ config, logger, checks, db, rateLimitStore, sms }) {
     next();
   });
 
-  app.use('/api/v1', apiV1Router({ config, checks, db, rateLimitStore, sms, logger }));
+  app.use(
+    '/api/v1',
+    apiV1Router({ app, config, checks, db, rateLimitStore, sms, whatsapp, logger }),
+  );
 
   app.use(notFoundHandler);
   app.use(errorHandler);

@@ -434,7 +434,7 @@ export const appointmentsQuery = (trx, org) =>
       'q.tracking_code',
     );
 
-export function appointmentsRouter({ db }) {
+export function appointmentsRouter({ db, notifier }) {
   const router = Router();
 
   router.get('/', requirePermission(P.APPOINTMENTS_READ), async (req, res) => {
@@ -503,6 +503,7 @@ export function appointmentsRouter({ db }) {
         replayed: r.replayed,
       };
     });
+    if (!replayed) notifier?.appointmentBooked(org, row.id);
     res.status(replayed ? 200 : 201).json(presentAppointment(row));
   });
 

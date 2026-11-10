@@ -12,6 +12,13 @@ import { orgStructureRouters } from '../../modules/org-structure/index.js';
 import { employeesRouter } from '../../modules/hr-employees/index.js';
 import { createMemoryStore } from '../../core/rate-limit.js';
 import { createSmsSender } from '../../integrations/sms/index.js';
+import { createWhatsAppSender } from '../../integrations/whatsapp/index.js';
+import { createNotifier } from '../../modules/notifications/index.js';
+import {
+  createWhatsAppProcessor,
+  whatsappSettingsRouter,
+  whatsappWebhookRouter,
+} from '../../modules/whatsapp/routes.js';
 import { createOtpService } from '../../modules/otp/index.js';
 import { createEmployeeLogin } from '../../modules/authentication/employee-login.js';
 import { attendanceRouter, selfAttendanceRouter } from '../../modules/hr-attendance/routes.js';
@@ -38,7 +45,7 @@ import {
  * Versioned API surface mounted at /api/v1. Each module exposes a router that is mounted here.
  * Every module except /health and /auth requires authentication.
  */
-export function apiV1Router({ config, checks, db, rateLimitStore, sms, logger }) {
+export function apiV1Router({ app, config, checks, db, rateLimitStore, sms, whatsapp, logger }) {
   const router = Router();
   router.use('/health', healthRouter({ checks }));
 
@@ -50,6 +57,21 @@ export function apiV1Router({ config, checks, db, rateLimitStore, sms, logger })
   const smsSender = sms ?? createSmsSender(config, { logger });
   const otp = createOtpService({ db, config, sms: smsSender });
   const limiterStore = rateLimitStore ?? createMemoryStore();
+  const whatsappSender = whatsapp ?? createWhatsAppSender(config);
+  const notifier = createNotifier({ db, config, whatsapp: whatsappSender, sms: smsSender, logger });
+  const whatsappProcessor = createWhatsAppProcessor({
+    db,
+    config,
+    whatsapp: whatsappSender,
+    logger,
+  });
+  if (app) {
+    app.locals.whatsappProcessor = whatsappProcessor;
+    app.locals.notifier = notifier;
+  }
+  if (config.APP_ENV !== 'test') {
+    setInterval(() => whatsappProcessor.sweep().catch(() => {}), 60_000).unref();
+  }
   const employeeLogin = createEmployeeLogin({ db, otp, authService });
 
   router.use(
@@ -83,8 +105,17 @@ export function apiV1Router({ config, checks, db, rateLimitStore, sms, logger })
   router.use('/patients', authenticate, patientsRouter({ db }));
   router.use('/privacy', authenticate, privacyRouter({ db }));
   router.use('/doctors', authenticate, doctorsRouter({ db }));
-  router.use('/appointments', authenticate, appointmentsRouter({ db }));
+  router.use('/appointments', authenticate, appointmentsRouter({ db, notifier }));
   router.use('/queue', authenticate, queueRouter({ db }));
+  router.use(
+    '/webhooks/whatsapp',
+    whatsappWebhookRouter({ db, config, processor: whatsappProcessor, logger }),
+  );
+  router.use(
+    '/integrations',
+    authenticate,
+    whatsappSettingsRouter({ db, config, whatsapp: whatsappSender }),
+  );
   // Patient's live queue link (token, position and estimate only).
   router.use('/public/track', trackingRouter({ db, rateLimitStore: limiterStore }));
   // Public clinic portal (QR landing page): no staff login; uses its own phone-verified token.
@@ -103,7 +134,7 @@ export function apiV1Router({ config, checks, db, rateLimitStore, sms, logger })
   router.use('/patient', patientAccountRouter({ db, authenticate: authenticatePatient }));
   router.use(
     '/public/clinics',
-    portalRouter({ db, rateLimitStore: limiterStore, authenticatePatient }),
+    portalRouter({ db, rateLimitStore: limiterStore, authenticatePatient, notifier }),
   );
 
   return router;

@@ -53,6 +53,28 @@ const schema = z
       .string()
       .regex(/^[A-Za-z0-9_]{1,30}$/)
       .default('otp'),
+    // Optional SMS for appointment confirmations (fallback when WhatsApp isn't allowed). A separate
+    // DLT-approved MSG91 template; its variable names, in order: token, date, time, link.
+    MSG91_APPOINTMENT_TEMPLATE_ID: z.string().default(''),
+    MSG91_APPOINTMENT_VARIABLES: z
+      .string()
+      .regex(/^[A-Za-z0-9_]{1,30}(,[A-Za-z0-9_]{1,30}){3}$/)
+      .default('token,date,time,link'),
+    // WhatsApp Business Platform (Meta Cloud API). 'console' prints messages in development.
+    // Each hospital's WhatsApp phone number ID is registered in the app (Settings → WhatsApp).
+    WHATSAPP_PROVIDER: z.enum(['meta', 'console', '']).default(''),
+    WHATSAPP_ACCESS_TOKEN: z.string().default(''),
+    WHATSAPP_APP_SECRET: z.string().default(''), // verifies webhook signatures
+    WHATSAPP_VERIFY_TOKEN: z.string().default(''), // webhook subscription handshake
+    // Graph API version shown in your Meta app dashboard, e.g. v21.0. Required for 'meta'.
+    WHATSAPP_GRAPH_API_VERSION: z
+      .string()
+      .regex(/^(v\d+\.\d+)?$/)
+      .default(''),
+    // Name and language of the approved template used for appointment confirmations. Its body must
+    // take four parameters, in order: token, date, time, link.
+    WHATSAPP_APPOINTMENT_TEMPLATE: z.string().default(''),
+    WHATSAPP_TEMPLATE_LANGUAGE: z.string().default('en'),
   })
   .superRefine((env, ctx) => {
     const deployed = env.APP_ENV === 'staging' || env.APP_ENV === 'production';

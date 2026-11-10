@@ -62,6 +62,23 @@ services:
       # Name of the OTP variable in your MSG91 template (e.g. otp or var1).
       - key: MSG91_OTP_VARIABLE
         value: otp
+      # Optional SMS appointment confirmations (separate DLT template).
+      - key: MSG91_APPOINTMENT_TEMPLATE_ID
+        sync: false
+      # WhatsApp Business Platform (Meta Cloud API). Leave the provider empty until Meta is set up.
+      # Webhook URL to give Meta: https://<api host>/api/v1/webhooks/whatsapp
+      - key: WHATSAPP_PROVIDER
+        sync: false
+      - key: WHATSAPP_ACCESS_TOKEN
+        sync: false
+      - key: WHATSAPP_APP_SECRET
+        sync: false
+      - key: WHATSAPP_VERIFY_TOKEN
+        generateValue: true
+      - key: WHATSAPP_GRAPH_API_VERSION
+        sync: false
+      - key: WHATSAPP_APPOINTMENT_TEMPLATE
+        sync: false
 
   # ---------------------------------------------------------------- Web (React static site)
   - type: web

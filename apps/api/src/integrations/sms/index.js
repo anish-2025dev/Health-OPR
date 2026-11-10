@@ -25,6 +25,9 @@ export function createMemorySms() {
     async sendOtp({ to, code, purpose }) {
       sent.push({ to, code, purpose, at: new Date() });
     },
+    async sendAppointment({ to, variables }) {
+      sent.push({ to, purpose: 'appointment', variables, at: new Date() });
+    },
   };
 }
 
@@ -36,12 +39,46 @@ function createConsoleSms(logger) {
       process.stdout.write(`\n[dev SMS] OTP for ${to} (${purpose}): ${code}\n\n`);
       logger?.info({ purpose, provider: 'console' }, 'development OTP printed to console');
     },
+    async sendAppointment({ to, variables }) {
+      process.stdout.write(
+        `\n[dev SMS] appointment to ${to}: ${Object.values(variables).join(' | ')}\n\n`,
+      );
+    },
   };
 }
 
 function createMsg91Sms(config, fetchImpl = globalThis.fetch) {
+  const flow = async (templateId, recipient) => {
+    const res = await fetchImpl('https://control.msg91.com/api/v5/flow', {
+      method: 'POST',
+      headers: {
+        accept: 'application/json',
+        'content-type': 'application/json',
+        authkey: config.MSG91_AUTH_KEY,
+      },
+      body: JSON.stringify({ template_id: templateId, short_url: '0', recipients: [recipient] }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok || body.type === 'error') {
+      throw new Error(
+        `MSG91 send failed (HTTP ${res.status}${body.message ? `: ${body.message}` : ''})`,
+      );
+    }
+  };
   return {
     provider: 'msg91',
+    async sendAppointment({ to, variables }) {
+      if (!config.MSG91_APPOINTMENT_TEMPLATE_ID) {
+        throw new SmsNotConfiguredError('MSG91_APPOINTMENT_TEMPLATE_ID is not set');
+      }
+      const names = config.MSG91_APPOINTMENT_VARIABLES.split(',');
+      const values = [variables.token, variables.date, variables.time, variables.link];
+      await flow(config.MSG91_APPOINTMENT_TEMPLATE_ID, {
+        mobiles: to.replace(/^\+/, ''),
+        ...Object.fromEntries(names.map((n, k) => [n, String(values[k])])),
+      });
+    },
     async sendOtp({ to, code }) {
       const res = await fetchImpl('https://control.msg91.com/api/v5/flow', {
         method: 'POST',
@@ -90,6 +127,9 @@ function notConfigured(reason) {
     provider: 'none',
     reason,
     async sendOtp() {
+      throw new SmsNotConfiguredError(reason);
+    },
+    async sendAppointment() {
       throw new SmsNotConfiguredError(reason);
     },
   };

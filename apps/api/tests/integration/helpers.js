@@ -10,6 +10,7 @@ import { createOrganizationWithOwner } from '../../src/modules/organizations/ind
 import { hashPassword } from '../../src/modules/authentication/passwords.js';
 import { testDatabaseUrl } from './test-db.js';
 import { createMemorySms } from '../../src/integrations/sms/index.js';
+import { createMemoryWhatsApp } from '../../src/integrations/whatsapp/index.js';
 
 export const PASSWORD = 'correct-horse-battery-staple';
 export const CSRF = { 'X-Requested-With': 'healthos-web' };
@@ -19,18 +20,24 @@ export function setupTestApp() {
     APP_ENV: 'test',
     APP_SECRET_KEY: 'test-secret-key-that-is-long-enough-123456',
     DATABASE_URL: testDatabaseUrl(),
+    WHATSAPP_APP_SECRET: 'test-whatsapp-app-secret',
+    WHATSAPP_VERIFY_TOKEN: 'test-verify-token',
+    WHATSAPP_APPOINTMENT_TEMPLATE: 'appointment_booked_test',
+    PATIENT_SITE_URL: 'https://patients.example.test',
   });
   const db = knex({ client: 'pg', connection: config.DATABASE_URL, pool: { min: 0, max: 5 } });
   const sms = createMemorySms();
+  const whatsapp = createMemoryWhatsApp();
   const app = createApp({
     config,
     logger: createLogger(config),
     db,
     sms,
+    whatsapp,
     rateLimitStore: createMemoryStore(),
     checks: { postgres: () => db.raw('select 1') },
   });
-  return { app, db, config, sms };
+  return { app, db, config, sms, whatsapp };
 }
 
 const suffix = () => randomUUID().slice(0, 8);
