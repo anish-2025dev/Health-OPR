@@ -9,9 +9,9 @@ services:
     name: healthos-api
     runtime: node
     region: singapore # keep close to the Neon region (AWS ap-southeast-1, Singapore)
-    plan: starter # free instances sleep after inactivity and cannot run preDeployCommand
-    buildCommand: npm ci
-    preDeployCommand: npm run db:migrate
+    plan: free # free instances sleep after inactivity and cannot run preDeployCommand
+    # Migrations run during the build because free instances do not support preDeployCommand.
+    buildCommand: npm ci && npm run db:migrate
     startCommand: npm run start --workspace apps/api
     healthCheckPath: /api/v1/health
     autoDeployTrigger: checksPass # deploy only after GitHub CI passes
