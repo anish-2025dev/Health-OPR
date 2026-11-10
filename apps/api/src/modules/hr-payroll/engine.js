@@ -140,6 +140,21 @@ export function attendanceMetrics(month, settings) {
 
 // ------------------------------------------------------------------ payslip
 
+/** Monthly amount per component (paise): fixed amounts from the structure, then % of a fixed component. */
+export function componentAmounts(components, structureAmounts) {
+  const map = new Map();
+  for (const c of components.filter((x) => x.calc === 'fixed')) {
+    if (structureAmounts[c.id] !== undefined) map.set(c.id, toPaise(structureAmounts[c.id]));
+  }
+  for (const c of components.filter((x) => x.calc === 'percent_of_component')) {
+    const base = map.get(c.baseComponentId);
+    if (base === undefined) continue;
+    const pct = decimalFraction(c.percent);
+    map.set(c.id, mulDivRound([base, pct.num], [100n, pct.den]));
+  }
+  return map;
+}
+
 const METRIC_UNITS = {
   lop_days: (m) => ({ num: halves(m.lopDays), den: 2n, label: `${m.lopDays} LOP day(s)` }),
   absent_days: (m) => ({
@@ -194,16 +209,8 @@ export function computePayslip(input) {
   const ordered = [...components].sort(
     (a, b) => a.displayOrder - b.displayOrder || a.code.localeCompare(b.code),
   );
-  for (const c of ordered.filter((x) => x.calc === 'fixed')) {
-    if (structureAmounts[c.id] === undefined) continue;
-    byComponent.set(c.id, toPaise(structureAmounts[c.id]));
-  }
-  for (const c of ordered.filter((x) => x.calc === 'percent_of_component')) {
-    const base = byComponent.get(c.baseComponentId);
-    if (base === undefined) continue;
-    const pct = decimalFraction(c.percent);
-    byComponent.set(c.id, mulDivRound([base, pct.num], [100n, pct.den]));
-  }
+  for (const [id, amount] of componentAmounts(components, structureAmounts))
+    byComponent.set(id, amount);
   for (const c of ordered) {
     if (!byComponent.has(c.id)) continue;
     const amount = byComponent.get(c.id);

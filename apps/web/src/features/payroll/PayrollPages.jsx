@@ -23,6 +23,7 @@ function PayrollNav() {
   const links = [
     { to: '/payroll', label: 'Payroll runs' },
     { to: '/payroll/salaries', label: 'Salaries' },
+    { to: '/payroll/statutory', label: 'Statutory', show: true },
     { to: '/payroll/setup', label: 'Setup', show: true },
   ];
   return (
@@ -126,6 +127,7 @@ export function PayrollRunsPage() {
 function ItemLines({ item }) {
   const earnings = item.lines.filter((l) => l.kind === 'earning');
   const deductions = item.lines.filter((l) => l.kind === 'deduction');
+  const employer = item.lines.filter((l) => l.kind === 'employer');
   const table = (title, lines) => (
     <div>
       <p className="mb-1 text-xs font-semibold uppercase text-slate-500">{title}</p>
@@ -146,7 +148,10 @@ function ItemLines({ item }) {
   return (
     <div className="grid gap-4 rounded-lg bg-slate-50 p-4 sm:grid-cols-3">
       {table('Earnings', earnings)}
-      {table('Deductions', deductions)}
+      <div className="space-y-3">
+        {table('Deductions', deductions)}
+        {employer.length > 0 && table('Employer contributions (not deducted)', employer)}
+      </div>
       <div className="text-sm text-slate-600">
         <p className="mb-1 text-xs font-semibold uppercase text-slate-500">Attendance used</p>
         <p>Loss of pay: {item.metrics.lopDays} day(s)</p>

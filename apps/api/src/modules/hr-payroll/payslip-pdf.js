@@ -158,6 +158,22 @@ export function renderPayslip({ organization, item, run }) {
     .text(amountInWords(r.netPay), 52, y + 28, { width: W - 24 });
 
   y += 64;
+  const employer = r.lines.filter((l) => l.kind === 'employer');
+  if (employer.length) {
+    doc
+      .fillColor('#0f172a')
+      .font('Helvetica-Bold')
+      .fontSize(9)
+      .text('Employer contributions (not deducted from your pay)', 40, y);
+    y += 14;
+    doc.font('Helvetica').fontSize(9);
+    for (const l of employer) {
+      doc.text(l.label, 52, y, { width: W - 140 });
+      doc.text(inr(l.amount), 40 + W - 120, y, { width: 120, align: 'right' });
+      y += 13;
+    }
+    y += 8;
+  }
   doc.fillColor('#64748b').fontSize(8);
   const paid =
     item.payment_status === 'paid'

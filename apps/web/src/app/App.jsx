@@ -21,6 +21,7 @@ import {
   PayrollSetupPage,
   SalariesPage,
 } from '@/features/payroll/PayrollPages';
+import { StatutoryPage } from '@/features/payroll/StatutoryPage';
 import {
   AttendanceDashboardPage,
   AttendanceRegisterPage,
@@ -158,6 +159,14 @@ export function App() {
           element={
             <RequirePermission permission="payroll.read">
               <SalariesPage />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="payroll/statutory"
+          element={
+            <RequirePermission permission="payroll.read">
+              <StatutoryPage />
             </RequirePermission>
           }
         />

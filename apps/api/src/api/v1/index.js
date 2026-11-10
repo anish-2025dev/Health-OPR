@@ -17,6 +17,7 @@ import { createEmployeeLogin } from '../../modules/authentication/employee-login
 import { attendanceRouter, selfAttendanceRouter } from '../../modules/hr-attendance/routes.js';
 import { leaveRouter, selfLeaveRouter } from '../../modules/hr-leave/routes.js';
 import { payrollRouter, selfPayslipRouter } from '../../modules/hr-payroll/routes.js';
+import { statutoryRouter } from '../../modules/hr-statutory/routes.js';
 
 /**
  * Versioned API surface mounted at /api/v1. Each module exposes a router that is mounted here.
@@ -60,6 +61,7 @@ export function apiV1Router({ config, checks, db, rateLimitStore, sms, logger })
   router.use('/me/payslips', authenticate, selfPayslipRouter({ db }));
   router.use('/me', authenticate, selfAttendanceRouter({ db, otp }));
   router.use('/leave', authenticate, leaveRouter({ db }));
+  router.use('/payroll/statutory', authenticate, statutoryRouter({ db }));
   router.use('/payroll', authenticate, payrollRouter({ db }));
 
   return router;

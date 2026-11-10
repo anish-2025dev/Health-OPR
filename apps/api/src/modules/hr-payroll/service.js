@@ -215,6 +215,7 @@ export async function calculateRun(trx, { organizationId, run }) {
       components,
       structure,
       metrics,
+      settings,
     });
 
     const inputs = {
