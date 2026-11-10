@@ -6,12 +6,15 @@ capabilities in HealthOS's own design; we do not copy another product's UI or br
 
 Decisions made by the product owner (2026-11-10):
 
-| Topic                      | Decision                                                                                                                                                              |
-| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Build order                | HR and clinic phases **in parallel** (alternating), after Phase 2                                                                                                     |
-| Day rate for deductions    | **Admin chooses** per company: calendar days, working days, or a fixed divisor (e.g. 30, 26)                                                                          |
-| Leave approval             | **Configurable per leave type**: 1 level (reporting manager) or 2 levels (manager → HR)                                                                               |
-| Attendance capture (pilot) | **QR at the clinic** (rotating). Manual admin correction with a mandatory reason and regularization requests are always available (spec requirement). Biometric later |
+| Topic                           | Decision                                                                                                                                                              |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Build order                     | HR and clinic phases **in parallel** (alternating), after Phase 2                                                                                                     |
+| Day rate for deductions         | **Admin chooses** per company: calendar days, working days, or a fixed divisor (e.g. 30, 26)                                                                          |
+| Leave approval                  | **Configurable per leave type**: 1 level (reporting manager) or 2 levels (manager → HR)                                                                               |
+| Attendance capture (pilot)      | **QR at the clinic** (rotating). Manual admin correction with a mandatory reason and regularization requests are always available (spec requirement). Biometric later |
+| Staff login (admin/HR/managers) | **Email + password** (Argon2id). MFA added later                                                                                                                      |
+| Employee login                  | **Mobile number + OTP**, plus **one registered phone** per employee (see 2.3). Until the SMS provider is set up, HR issues a one-time activation code in person       |
+| Employee self-view              | Employees see their own OT, leaves and balances, late entries, half days and company holidays (see 2.6)                                                               |
 
 General rules from the project spec still apply: tenant isolation, backend authorization, audit logs,
 transactions, no hardcoded statutory values, immutable finalized payroll, and no real data in development.
@@ -83,6 +86,26 @@ corrections become payroll **adjustments** in the next run.
 - The first scan of the day is check-in and later scans are check-out (subject to the minimum punch gap).
 - Optional later: GPS/Wi-Fi checks, which need a privacy notice and a lawful basis.
 
+**Preventing proxy attendance (someone marking attendance for a colleague):**
+
+1. **Mobile-number login.** Employees log in with their mobile number and an OTP, so there is no password
+   to share. The OTP provider is behind an adapter; development uses a console adapter.
+2. **One registered phone per employee.** The first login registers that phone (a device key kept on
+   the phone). Check-in is accepted only from the registered phone. A new phone needs an OTP to the
+   registered number **and** HR approval. Until SMS is set up, HR issues a one-time activation code in
+   person instead of the OTP.
+3. **One phone, one employee per day.** If a phone already used by employee A punches for employee B, the
+   punch is **held for HR review** and doesn't count automatically.
+4. **Suspicious-punch flags** go to the HR review queue: a punch during approved leave, a new or unknown
+   phone, or unusual timing patterns.
+5. **Optional check-in photo per branch.** The phone takes a selfie at check-in for manager spot-checks.
+   This is a photo only, with no automatic face recognition. Employees are told about it, and photos have
+   a retention limit.
+6. Every punch records the employee, phone, branch, QR challenge, time and source for the audit trail.
+
+A phone-based system cannot make proxy attendance completely impossible. These measures make it hard
+to do and easy to detect. Biometric terminals (a later phase) need a privacy and vendor review first.
+
 ### 2.4 Screens
 
 | Screen                       | Who                     | Contents                                                                                                                                                    |
@@ -103,6 +126,20 @@ corrections become payroll **adjustments** in the next run.
 An employee picks a day, gives corrected times or a status (for example "forgot to check out"), and adds
 a reason. The request goes to the reporting manager (or HR, per configuration). Approving it updates the
 day with source `regularization`. Rejecting it needs a comment. Every request and decision is audit-logged.
+
+### 2.6 Employee self-view ("My attendance")
+
+Each employee sees **only their own** data. This is enforced on the server.
+
+| Section          | Shows                                                                                                            |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Month summary    | Present, absent, **half days**, reduced-hour days, leave days, week-offs, holidays, payable days                 |
+| **Overtime**     | OT per day and month total, with status (requested / approved / rejected)                                        |
+| **Late entries** | Each late day with check-in time and minutes late; free lates used vs allowed this month; penalty applied so far |
+| **Half days**    | Each half day and why (worked hours below full day, or half-day leave)                                           |
+| **Leaves**       | Balance per leave type (available / used / pending), upcoming approved leaves, request history                   |
+| **Holidays**     | The company's holiday calendar for the employee's branch (this month and the full year)                          |
+| Daily log        | Shift, check-in/out, hours, break, punches, status. Any day can be opened to request a correction                |
 
 ---
 
