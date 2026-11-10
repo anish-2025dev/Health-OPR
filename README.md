@@ -4,9 +4,9 @@ Multi-tenant B2B SaaS for hospitals, clinics and nursing homes in India. It cove
 appointments, queues, WhatsApp self-service for existing patients, and staff management, attendance,
 leave and payroll.
 
-> **Status:** Phase 2 complete: multi-tenant foundation with organizations, branches, staff users,
-> roles and permissions, secure sign-in, PostgreSQL row-level security and an audit log. Patient, HR and
-> payroll modules come next (see [roadmap](docs/roadmap.md)). Use synthetic data only.
+> **Status:** Phases 0–2 and 8 complete: multi-tenant foundation (organizations, branches, staff users,
+> roles, secure sign-in, PostgreSQL row-level security, audit log) plus organization structure and
+> employee profiles. Attendance (9a) is next (see [roadmap](docs/roadmap.md)). Use synthetic data only.
 
 The primary requirements document is
 [`docs/healthos-platform-project-spec.json`](docs/healthos-platform-project-spec.json). Where the
@@ -123,25 +123,33 @@ make dev
 
 Base path: `/api/v1`. JSON only.
 
-| Endpoint                                | Auth / permission                                 | Purpose                                                |
-| --------------------------------------- | ------------------------------------------------- | ------------------------------------------------------ |
-| `GET /health`                           | public                                            | Liveness: `{"status":"ok"}`                            |
-| `GET /health/ready`                     | public                                            | Readiness: checks PostgreSQL and Redis; `200` or `503` |
-| `POST /auth/login`                      | public, rate-limited                              | Email + password → access token + refresh cookie       |
-| `POST /auth/refresh`                    | refresh cookie + `X-Requested-With: healthos-web` | Rotate refresh token, new access token                 |
-| `POST /auth/logout`                     | refresh cookie + header                           | End the session                                        |
-| `GET /auth/me`                          | signed in                                         | User, organization, roles, permissions, branch scope   |
-| `POST /auth/change-password`            | signed in                                         | Change own password; signs out other sessions          |
-| `GET /organizations/current`            | signed in                                         | Current organization                                   |
-| `PATCH /organizations/current`          | `organization.manage`                             | Update name, legal name, timezone                      |
-| `GET /branches`                         | `branches.read`                                   | Branches (limited to the user's branch scope)          |
-| `POST /branches`, `PATCH /branches/:id` | `branches.manage`                                 | Create / update / deactivate a branch                  |
-| `GET /users`, `GET /users/roles`        | `users.read`                                      | Staff users with roles; role catalog                   |
-| `POST /users`                           | `users.manage`                                    | Create a user; returns a one-time temporary password   |
-| `PATCH /users/:id`                      | `users.manage`                                    | Update name/phone, enable/disable (ends sessions)      |
-| `PUT /users/:id/roles`                  | `users.manage`                                    | Replace role assignments                               |
-| `POST /users/:id/reset-password`        | `users.manage`                                    | New temporary password; ends sessions                  |
-| `GET /audit-logs?limit&before&action`   | `audit.read`                                      | Audit entries, newest first                            |
+| Endpoint                                                        | Auth / permission                                 | Purpose                                                              |
+| --------------------------------------------------------------- | ------------------------------------------------- | -------------------------------------------------------------------- |
+| `GET /health`                                                   | public                                            | Liveness: `{"status":"ok"}`                                          |
+| `GET /health/ready`                                             | public                                            | Readiness: checks PostgreSQL and Redis; `200` or `503`               |
+| `POST /auth/login`                                              | public, rate-limited                              | Email + password → access token + refresh cookie                     |
+| `POST /auth/refresh`                                            | refresh cookie + `X-Requested-With: healthos-web` | Rotate refresh token, new access token                               |
+| `POST /auth/logout`                                             | refresh cookie + header                           | End the session                                                      |
+| `GET /auth/me`                                                  | signed in                                         | User, organization, roles, permissions, branch scope                 |
+| `POST /auth/change-password`                                    | signed in                                         | Change own password; signs out other sessions                        |
+| `GET /organizations/current`                                    | signed in                                         | Current organization                                                 |
+| `PATCH /organizations/current`                                  | `organization.manage`                             | Update name, legal name, timezone                                    |
+| `GET /branches`                                                 | `branches.read`                                   | Branches (limited to the user's branch scope)                        |
+| `POST /branches`, `PATCH /branches/:id`                         | `branches.manage`                                 | Create / update / deactivate a branch                                |
+| `GET /users`, `GET /users/roles`                                | `users.read`                                      | Staff users with roles; role catalog                                 |
+| `POST /users`                                                   | `users.manage`                                    | Create a user; returns a one-time temporary password                 |
+| `PATCH /users/:id`                                              | `users.manage`                                    | Update name/phone, enable/disable (ends sessions)                    |
+| `PUT /users/:id/roles`                                          | `users.manage`                                    | Replace role assignments                                             |
+| `POST /users/:id/reset-password`                                | `users.manage`                                    | New temporary password; ends sessions                                |
+| `GET /audit-logs?limit&before&action`                           | `audit.read`                                      | Audit entries, newest first                                          |
+| `GET /departments`, `/designations`, `/shifts`                  | `employees.read` or `org_structure.manage`        | Lookup lists                                                         |
+| `POST`/`PATCH` `/departments`, `/designations`, `/shifts`       | `org_structure.manage`                            | Create, rename, deactivate                                           |
+| `GET /holidays?year&branchId`                                   | `holidays.read`                                   | Holiday calendar (branch filter includes organization-wide holidays) |
+| `POST /holidays`, `DELETE /holidays/:id`                        | `org_structure.manage`                            | Manage holidays                                                      |
+| `GET /hr/employees?q&branchId&departmentId&status&limit&offset` | `employees.read`                                  | Employees (branch-scoped; mobile masked without `employees.manage`)  |
+| `GET /hr/employees/:id`                                         | `employees.read`                                  | One employee                                                         |
+| `POST /hr/employees`, `PATCH /hr/employees/:id`                 | `employees.manage`                                | Create (auto `EMP-0001` IDs) / update, including exit                |
+| `PATCH /branches/:id` with `location`, `geofenceRadiusM`        | `branches.manage`                                 | Branch attendance location and radius                                |
 
 All paths are under `/api/v1`. Signed-in requests send `Authorization: Bearer <accessToken>`.
 

@@ -4,6 +4,9 @@ import { Button } from '@/components/ui';
 
 const NAV = [
   { to: '/', label: 'Dashboard', end: true },
+  { to: '/employees', label: 'Employees', permission: 'employees.read' },
+  { to: '/holidays', label: 'Holidays', permission: 'holidays.read' },
+  { to: '/company-setup', label: 'Company setup', permission: 'org_structure.manage' },
   { to: '/branches', label: 'Branches', permission: 'branches.read' },
   { to: '/users', label: 'Users & roles', permission: 'users.read' },
   { to: '/audit', label: 'Audit log', permission: 'audit.read' },

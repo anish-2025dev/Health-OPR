@@ -6,6 +6,10 @@ import { DashboardPage } from '@/features/dashboard/DashboardPage';
 import { BranchesPage } from '@/features/branches/BranchesPage';
 import { UsersPage } from '@/features/users/UsersPage';
 import { AuditPage } from '@/features/audit/AuditPage';
+import { EmployeesPage } from '@/features/employees/EmployeesPage';
+import { EmployeeFormPage } from '@/features/employees/EmployeeFormPage';
+import { HolidaysPage } from '@/features/org-structure/HolidaysPage';
+import { CompanySetupPage } from '@/features/org-structure/CompanySetupPage';
 import { Spinner } from '@/components/ui';
 import { AppLayout } from './AppLayout';
 
@@ -67,6 +71,46 @@ export function App() {
           element={
             <RequirePermission permission="audit.read">
               <AuditPage />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="employees"
+          element={
+            <RequirePermission permission="employees.read">
+              <EmployeesPage />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="employees/new"
+          element={
+            <RequirePermission permission="employees.manage">
+              <EmployeeFormPage />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="employees/:id"
+          element={
+            <RequirePermission permission="employees.read">
+              <EmployeeFormPage />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="holidays"
+          element={
+            <RequirePermission permission="holidays.read">
+              <HolidaysPage />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="company-setup"
+          element={
+            <RequirePermission permission="org_structure.manage">
+              <CompanySetupPage />
             </RequirePermission>
           }
         />

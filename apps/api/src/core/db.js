@@ -1,6 +1,13 @@
 import knex from 'knex';
+import pg from 'pg';
 import knexConfig from '../../knexfile.js';
 import { AppError } from './errors.js';
+
+// Return SQL `date` values as 'YYYY-MM-DD' strings. The default converts them to a JS Date at local
+// midnight, which can shift holidays, joining dates and attendance days by one across timezones.
+// (`numeric` already comes back as a string, which keeps money exact.)
+const DATE_OID = 1082;
+pg.types.setTypeParser(DATE_OID, (value) => value);
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

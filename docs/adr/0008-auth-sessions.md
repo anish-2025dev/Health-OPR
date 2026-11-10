@@ -33,12 +33,12 @@ The product owner asked for the option that is "best and easy to implement".
 
 ### Employees: OTP-based, no password
 
-- **Marking attendance (pilot):** no login. The employee scans the branch's fixed QR, enters their Employee
-  ID, receives an SMS OTP on the mobile number HR saved, and the server also checks the phone's location
-  against the branch geofence. Attendance is recorded only if both pass. Full rules are in
-  `docs/requirements/hr-attendance-leave-payroll.md` §2.3.
-- **Self-service (own attendance, leave, payslips):** sign in with mobile number + OTP, using the same
-  session model as staff.
+- **Sign-in:** mobile number + OTP, then the employee stays signed in on their phone (same session model
+  as staff).
+- **Marking attendance (pilot):** in the app, tap **Mark attendance**. The server first checks the phone's
+  location against the branch geofence, and only then sends an SMS OTP. Attendance is recorded only if
+  both pass. Full rules are in `docs/requirements/hr-attendance-leave-payroll.md` §2.3.
+- **Self-service:** own attendance, leave and payslips, with the same sign-in.
 - OTPs go through the SMS provider adapter (MSG91 or similar; development uses a console adapter that
   never sends real SMS). They are stored hashed, expire in 5 minutes, are single-use and rate-limited.
 - OTP possession is not proof of identity on its own (spec rule). For attendance it is combined with the

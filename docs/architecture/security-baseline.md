@@ -42,7 +42,9 @@ Status markers: ✅ in place · 🔜 planned for the named phase.
   caller's organization (and branch, where relevant); other tenants' objects return 404.
 - ✅ Branch-scoped roles. Only owners can grant or revoke the owner role, and nobody can change their own roles.
 - 🔜 Payroll approval and payroll payment are separate permissions (Phase 10).
-- 🔜 Employees see only their own HR self-service records (Phase 8+).
+- ✅ Employee records: receptionists, doctors, nurses and employees have no access. Payroll and clinic
+  managers can read them, but see masked mobile numbers and no emergency contacts. Only HR/admin can edit.
+- 🔜 Employees see only their own HR self-service records (Phase 9a+).
 
 ## Data protection
 

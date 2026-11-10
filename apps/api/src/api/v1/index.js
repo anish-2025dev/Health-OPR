@@ -8,6 +8,8 @@ import { organizationsRouter } from '../../modules/organizations/index.js';
 import { branchesRouter } from '../../modules/branches/index.js';
 import { usersRouter } from '../../modules/staff-access/users.routes.js';
 import { auditRouter } from '../../modules/audit/index.js';
+import { orgStructureRouters } from '../../modules/org-structure/index.js';
+import { employeesRouter } from '../../modules/hr-employees/index.js';
 import { createMemoryStore } from '../../core/rate-limit.js';
 
 /**
@@ -37,6 +39,13 @@ export function apiV1Router({ config, checks, db, rateLimitStore }) {
   router.use('/branches', authenticate, branchesRouter({ db }));
   router.use('/users', authenticate, usersRouter({ db }));
   router.use('/audit-logs', authenticate, auditRouter({ db }));
+
+  const structure = orgStructureRouters({ db });
+  router.use('/departments', authenticate, structure.departments);
+  router.use('/designations', authenticate, structure.designations);
+  router.use('/shifts', authenticate, structure.shifts);
+  router.use('/holidays', authenticate, structure.holidays);
+  router.use('/hr/employees', authenticate, employeesRouter({ db }));
 
   return router;
 }

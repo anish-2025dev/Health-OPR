@@ -11,6 +11,11 @@ export const PERMISSIONS = Object.freeze({
   USERS_READ: 'users.read',
   USERS_MANAGE: 'users.manage',
   AUDIT_READ: 'audit.read',
+  // Phase 8: organization structure and employees
+  ORG_STRUCTURE_MANAGE: 'org_structure.manage', // departments, designations, shifts, holidays
+  HOLIDAYS_READ: 'holidays.read',
+  EMPLOYEES_READ: 'employees.read',
+  EMPLOYEES_MANAGE: 'employees.manage',
 });
 
 const ALL = Object.values(PERMISSIONS);
@@ -23,14 +28,35 @@ const P = PERMISSIONS;
 export const ROLES = Object.freeze({
   organization_owner: { label: 'Organization owner', permissions: ALL },
   organization_admin: { label: 'Organization admin', permissions: ALL },
-  clinic_manager: { label: 'Clinic manager', permissions: [P.BRANCHES_READ, P.USERS_READ] },
-  hr_manager: { label: 'HR manager', permissions: [P.BRANCHES_READ, P.USERS_READ] },
-  payroll_manager: { label: 'Payroll manager', permissions: [P.BRANCHES_READ] },
-  department_manager: { label: 'Department manager', permissions: [P.BRANCHES_READ] },
-  receptionist: { label: 'Receptionist', permissions: [P.BRANCHES_READ] },
-  doctor: { label: 'Doctor', permissions: [P.BRANCHES_READ] },
-  nurse: { label: 'Nurse', permissions: [P.BRANCHES_READ] },
-  employee: { label: 'Employee', permissions: [] },
+  clinic_manager: {
+    label: 'Clinic manager',
+    permissions: [P.BRANCHES_READ, P.USERS_READ, P.HOLIDAYS_READ, P.EMPLOYEES_READ],
+  },
+  hr_manager: {
+    label: 'HR manager',
+    permissions: [
+      P.BRANCHES_READ,
+      P.USERS_READ,
+      P.HOLIDAYS_READ,
+      P.ORG_STRUCTURE_MANAGE,
+      P.EMPLOYEES_READ,
+      P.EMPLOYEES_MANAGE,
+    ],
+  },
+  payroll_manager: {
+    label: 'Payroll manager',
+    permissions: [P.BRANCHES_READ, P.HOLIDAYS_READ, P.EMPLOYEES_READ],
+  },
+  // Team view (direct reports) arrives with attendance in Phase 9a.
+  department_manager: {
+    label: 'Department manager',
+    permissions: [P.BRANCHES_READ, P.HOLIDAYS_READ],
+  },
+  // Clinical/front-desk roles: no employee records (spec: no salary/PF/ESI access by default).
+  receptionist: { label: 'Receptionist', permissions: [P.BRANCHES_READ, P.HOLIDAYS_READ] },
+  doctor: { label: 'Doctor', permissions: [P.BRANCHES_READ, P.HOLIDAYS_READ] },
+  nurse: { label: 'Nurse', permissions: [P.BRANCHES_READ, P.HOLIDAYS_READ] },
+  employee: { label: 'Employee', permissions: [P.HOLIDAYS_READ] },
 });
 
 export const ROLE_KEYS = Object.freeze(Object.keys(ROLES));
