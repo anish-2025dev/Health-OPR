@@ -15,6 +15,13 @@ import { MyAttendancePage } from '@/features/attendance/MyAttendancePage';
 import { MyLeavePage } from '@/features/leave/MyLeavePage';
 import { LeaveAdminPage } from '@/features/leave/LeaveAdminPage';
 import {
+  MyPayslipsPage,
+  PayrollRunPage,
+  PayrollRunsPage,
+  PayrollSetupPage,
+  SalariesPage,
+} from '@/features/payroll/PayrollPages';
+import {
   AttendanceDashboardPage,
   AttendanceRegisterPage,
   AttendanceSettingsPage,
@@ -122,6 +129,46 @@ export function App() {
           }
         />
         <Route path="attendance/employees/:id" element={<EmployeeAttendancePage />} />
+        <Route
+          path="my-payslips"
+          element={
+            <RequirePermission allow={(a) => Boolean(a.me.employee)}>
+              <MyPayslipsPage />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="payroll"
+          element={
+            <RequirePermission permission="payroll.read">
+              <PayrollRunsPage />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="payroll/runs/:id"
+          element={
+            <RequirePermission permission="payroll.read">
+              <PayrollRunPage />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="payroll/salaries"
+          element={
+            <RequirePermission permission="payroll.read">
+              <SalariesPage />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="payroll/setup"
+          element={
+            <RequirePermission permission="payroll.read">
+              <PayrollSetupPage />
+            </RequirePermission>
+          }
+        />
         <Route
           path="my-leave"
           element={

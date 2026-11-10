@@ -1,5 +1,6 @@
 import { AppError, notFound } from '../../core/errors.js';
 import { approvedLeaveDays } from '../hr-leave/service.js';
+import { assertNotPayrollLocked } from '../hr-payroll/lock.js';
 import {
   addDays,
   computeDay,
@@ -130,6 +131,7 @@ export async function recomputeDay(trx, { organizationId, emp, workDate, policy,
   if (existing?.locked_at) {
     throw new AppError(409, 'DAY_LOCKED', 'This day is locked because payroll has been finalized');
   }
+  await assertNotPayrollLocked(trx, organizationId, emp.id, workDate);
 
   const punches = await trx('attendance_punches')
     .where({ organization_id: organizationId, employee_id: emp.id, work_date: workDate })

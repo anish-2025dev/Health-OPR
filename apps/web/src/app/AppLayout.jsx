@@ -11,6 +11,7 @@ const NAV = [
   },
   { to: '/my-attendance', label: 'My attendance', show: (a) => Boolean(a.me.employee) },
   { to: '/my-leave', label: 'My leave', show: (a) => Boolean(a.me.employee) },
+  { to: '/my-payslips', label: 'My payslips', show: (a) => Boolean(a.me.employee) },
   { to: '/attendance', label: 'Attendance', permission: 'attendance.read' },
   {
     to: '/leave',
@@ -22,6 +23,7 @@ const NAV = [
     label: 'My team',
     show: (a) => Boolean(a.me.employee?.isManager) && !a.can('attendance.read'),
   },
+  { to: '/payroll', label: 'Payroll', permission: 'payroll.read' },
   { to: '/employees', label: 'Employees', permission: 'employees.read' },
   { to: '/holidays', label: 'Holidays', permission: 'holidays.read' },
   { to: '/company-setup', label: 'Company setup', permission: 'org_structure.manage' },

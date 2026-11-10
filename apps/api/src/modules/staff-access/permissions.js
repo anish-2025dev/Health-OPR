@@ -24,6 +24,11 @@ export const PERMISSIONS = Object.freeze({
   // approve their direct reports.
   LEAVE_READ: 'leave.read',
   LEAVE_MANAGE: 'leave.manage',
+  // Phase 10: payroll. Approving payroll and recording payments are deliberately separate.
+  PAYROLL_READ: 'payroll.read',
+  PAYROLL_MANAGE: 'payroll.manage', // components, structures, policies, runs, adjustments
+  PAYROLL_APPROVE: 'payroll.approve', // approve (finalize) a run
+  PAYROLL_PAY: 'payroll.pay', // record payment status
 });
 
 const ALL = Object.values(PERMISSIONS);
@@ -62,6 +67,7 @@ export const ROLES = Object.freeze({
       P.LEAVE_MANAGE,
     ],
   },
+  // Payroll managers prepare payroll and record payments; an owner/admin approves it.
   payroll_manager: {
     label: 'Payroll manager',
     permissions: [
@@ -70,6 +76,9 @@ export const ROLES = Object.freeze({
       P.EMPLOYEES_READ,
       P.ATTENDANCE_READ,
       P.LEAVE_READ,
+      P.PAYROLL_READ,
+      P.PAYROLL_MANAGE,
+      P.PAYROLL_PAY,
     ],
   },
   // Department managers see and approve their direct reports through the employee reporting line.

@@ -7,6 +7,7 @@ import { auditContext, recordAudit } from '../audit/index.js';
 import { PERMISSIONS, requirePermission } from '../staff-access/permissions.js';
 import { monthEnd } from '../hr-attendance/calc.js';
 import { leaveYearOf, leaveYearRange } from './calc.js';
+import { assertRangeNotPayrollLocked } from '../hr-payroll/lock.js';
 import {
   balancesFor,
   employeeRow,
@@ -222,6 +223,13 @@ export function selfLeaveRouter({ db }) {
         body,
         settings,
       });
+      await assertRangeNotPayrollLocked(
+        trx,
+        req.auth.organizationId,
+        employee.id,
+        body.startDate,
+        body.endDate,
+      );
       const [created] = await trx('leave_requests')
         .insert({
           organization_id: req.auth.organizationId,
@@ -447,6 +455,15 @@ export function leaveRouter({ db }) {
       await trx('leave_requests').where({ id: r.id }).forUpdate().first('id');
       if (r.status !== 'pending')
         throw conflict('ALREADY_DECIDED', 'This request has already been decided');
+      if (approve) {
+        await assertRangeNotPayrollLocked(
+          trx,
+          req.auth.organizationId,
+          r.employee_id,
+          r.start_date,
+          r.end_date,
+        );
+      }
 
       let update;
       if (!approve) {
@@ -526,6 +543,15 @@ export function leaveRouter({ db }) {
       if (!r || !isHr(req.auth, r.branch_id)) throw notFound();
       if (!['pending', 'approved'].includes(r.status))
         throw conflict('NOT_CANCELLABLE', 'This request cannot be cancelled');
+      if (r.status === 'approved') {
+        await assertRangeNotPayrollLocked(
+          trx,
+          req.auth.organizationId,
+          r.employee_id,
+          r.start_date,
+          r.end_date,
+        );
+      }
       await trx('leave_requests').where({ id: r.id }).update({
         status: 'cancelled',
         cancelled_by_user_id: req.auth.userId,
