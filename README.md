@@ -126,16 +126,23 @@ credentials as **Codespaces Secrets**. In production, use a managed secret store
 | ----------------------------------------------------------------------- | ------- | --------------------------------------------------------------------------------------- |
 | `APP_ENV`                                                               | API     | `development`, `test`, `staging`, `production`                                          |
 | `APP_SECRET_KEY`                                                        | API     | Signing secret. Must be ≥ 32 real chars outside dev; the API refuses to start otherwise |
-| `API_PORT`                                                              | API     | Default 4000                                                                            |
-| `FRONTEND_URL`                                                          | API     | Allowed CORS origin                                                                     |
+| `API_PORT`                                                              | API     | Default 4000. A platform-provided `PORT` (Render) takes precedence                      |
+| `FRONTEND_URL`                                                          | API     | Allowed CORS origin; must be `https://` outside dev                                     |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` / `REFRESH_TOKEN_EXPIRE_DAYS`             | API     | Auth session lifetimes (Phase 2)                                                        |
 | `LOG_LEVEL`                                                             | API     | pino level                                                                              |
-| `DATABASE_URL`                                                          | API     | PostgreSQL connection string                                                            |
+| `DATABASE_URL`                                                          | API     | PostgreSQL connection string; needs `?sslmode=require` outside dev                      |
+| `DATABASE_MIGRATION_URL`                                                | API     | Optional direct (non-pooled) URL for migrations; falls back to `DATABASE_URL`           |
 | `REDIS_URL`                                                             | API     | Redis connection string                                                                 |
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` / `POSTGRES_PORT` | Compose | Local database container                                                                |
 | `REDIS_PORT`                                                            | Compose | Local Redis container                                                                   |
 | `VITE_API_BASE_URL`                                                     | Web     | Public; never put secrets in `VITE_*`                                                   |
 | `WHATSAPP_*`, `MSG91_*`, `S3_BUCKET`, `AWS_REGION`                      | API     | Integrations in later phases; leave empty for now                                       |
+
+## Deployment
+
+Hosting is **Render** (API web service, static web app, private Key Value/Redis) with **Neon** for
+PostgreSQL, defined in [`render.yaml`](render.yaml). Step-by-step instructions are in
+[`docs/deployment/render-neon.md`](docs/deployment/render-neon.md).
 
 ## Roadmap
 

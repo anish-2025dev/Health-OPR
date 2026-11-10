@@ -1,0 +1,98 @@
+# Render Blueprint: https://render.com/docs/blueprint-spec
+# Creates the API, the static web app and a private Redis-compatible Key Value instance.
+# PostgreSQL is hosted on Neon (not Render). Paste Neon's connection strings when Render prompts for
+# the `sync: false` variables. Never commit real values to this file.
+
+services:
+  # ---------------------------------------------------------------- API (Express)
+  - type: web
+    name: healthos-api
+    runtime: node
+    region: singapore # keep close to the Neon region (AWS ap-southeast-1, Singapore)
+    plan: starter # free instances sleep after inactivity and cannot run preDeployCommand
+    buildCommand: npm ci
+    preDeployCommand: npm run db:migrate
+    startCommand: npm run start --workspace apps/api
+    healthCheckPath: /api/v1/health
+    autoDeployTrigger: checksPass # deploy only after GitHub CI passes
+    buildFilter:
+      paths:
+        - apps/api/**
+        - package.json
+        - package-lock.json
+        - render.yaml
+    envVars:
+      - key: NODE_VERSION
+        value: '22'
+      - key: APP_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: info
+      - key: APP_SECRET_KEY
+        generateValue: true
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: '15'
+      - key: REFRESH_TOKEN_EXPIRE_DAYS
+        value: '14'
+      # Neon POOLED connection string (host contains "-pooler"), ending in ?sslmode=require
+      - key: DATABASE_URL
+        sync: false
+      # Neon DIRECT connection string (host without "-pooler"), used only for migrations
+      - key: DATABASE_MIGRATION_URL
+        sync: false
+      # https:// URL of the healthos-web static site, used for CORS
+      - key: FRONTEND_URL
+        sync: false
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: healthos-redis
+          property: connectionString
+
+  # ---------------------------------------------------------------- Web (React static site)
+  - type: web
+    name: healthos-web
+    runtime: static
+    buildCommand: npm ci && npm run build
+    staticPublishPath: apps/web/dist
+    autoDeployTrigger: checksPass # deploy only after GitHub CI passes
+    buildFilter:
+      paths:
+        - apps/web/**
+        - package.json
+        - package-lock.json
+        - render.yaml
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    headers:
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin
+      - path: /*
+        name: Permissions-Policy
+        value: camera=(), microphone=(), geolocation=()
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+    envVars:
+      - key: NODE_VERSION
+        value: '22'
+      # Public, baked into the bundle at build time: https://<healthos-api host>/api/v1
+      - key: VITE_API_BASE_URL
+        sync: false
+
+  # ---------------------------------------------------------------- Redis-compatible cache / queue
+  - type: keyvalue
+    name: healthos-redis
+    region: singapore
+    plan: free
+    maxmemoryPolicy: noeviction # required later for BullMQ job queues
+    ipAllowList: [] # private network only; not reachable from the internet
