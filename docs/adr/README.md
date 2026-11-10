@@ -9,6 +9,6 @@
 | [0005](0005-migrations-only-schema-changes.md)  | Knex migrations are the only way to change schema                 | Accepted |
 | [0006](0006-provider-adapters.md)               | Provider adapters for all external integrations                   | Accepted |
 | [0007](0007-effective-dated-statutory-rules.md) | Effective-dated, versioned statutory payroll rules                | Accepted |
-| [0008](0008-auth-sessions.md)                   | Staff email+password, employee mobile OTP + registered phone      | Accepted |
+| [0008](0008-auth-sessions.md)                   | Staff email+password; employee OTP (+ geofence for attendance)    | Accepted |
 
 New ADRs use the next number and the format: Context, Decision, Consequences.

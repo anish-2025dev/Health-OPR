@@ -6,15 +6,15 @@ capabilities in HealthOS's own design; we do not copy another product's UI or br
 
 Decisions made by the product owner (2026-11-10):
 
-| Topic                           | Decision                                                                                                                                                              |
-| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Build order                     | HR and clinic phases **in parallel** (alternating), after Phase 2                                                                                                     |
-| Day rate for deductions         | **Admin chooses** per company: calendar days, working days, or a fixed divisor (e.g. 30, 26)                                                                          |
-| Leave approval                  | **Configurable per leave type**: 1 level (reporting manager) or 2 levels (manager → HR)                                                                               |
-| Attendance capture (pilot)      | **QR at the clinic** (rotating). Manual admin correction with a mandatory reason and regularization requests are always available (spec requirement). Biometric later |
-| Staff login (admin/HR/managers) | **Email + password** (Argon2id). MFA added later                                                                                                                      |
-| Employee login                  | **Mobile number + OTP**, plus **one registered phone** per employee (see 2.3). Until the SMS provider is set up, HR issues a one-time activation code in person       |
-| Employee self-view              | Employees see their own OT, leaves and balances, late entries, half days and company holidays (see 2.6)                                                               |
+| Topic                           | Decision                                                                                                                                                                                                                        |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Build order                     | HR and clinic phases **in parallel** (alternating), after Phase 2                                                                                                                                                               |
+| Day rate for deductions         | **Admin chooses** per company: calendar days, working days, or a fixed divisor (e.g. 30, 26)                                                                                                                                    |
+| Leave approval                  | **Configurable per leave type**: 1 level (reporting manager) or 2 levels (manager → HR)                                                                                                                                         |
+| Attendance capture (pilot)      | **Fixed QR at the branch → Employee ID → SMS OTP + geofence (default 10 m).** Marked only if both pass (see 2.3). Manual admin correction with a mandatory reason and regularization requests always available. Biometric later |
+| Staff login (admin/HR/managers) | **Email + password** (Argon2id). MFA added later                                                                                                                                                                                |
+| Employee login (self-service)   | **Mobile number + OTP** to view own attendance, leave and payslips. Marking attendance needs no login (see 2.3)                                                                                                                 |
+| Employee self-view              | Employees see their own OT, leaves and balances, late entries, half days and company holidays (see 2.6)                                                                                                                         |
 
 General rules from the project spec still apply: tenant isolation, backend authorization, audit logs,
 transactions, no hardcoded statutory values, immutable finalized payroll, and no real data in development.
@@ -28,8 +28,7 @@ transactions, no hardcoded statutory values, immutable finalized payroll, and no
 | Organization admin / HR manager | Configure policies, leave types, holidays, shifts; manage employees; edit attendance (with reason); approve regularizations; override leave decisions (with reason); export |
 | Payroll manager                 | Salary structures, deduction policies, payroll runs, payslips. **Approving** and **marking paid** are separate permissions                                                  |
 | Department / reporting manager  | View team attendance; approve team leave and regularization requests (when configured)                                                                                      |
-| Employee                        | Check in/out via QR; see own attendance, leave balances and payslips; apply for leave; request regularization                                                               |
-| Kiosk (device role)             | Shows the branch's rotating attendance QR only; no data access                                                                                                              |
+| Employee                        | Check in/out via branch QR + OTP + location; see own attendance, leave balances and payslips; apply for leave; request regularization                                       |
 
 HR roles get no access to patient data, and clinic roles (receptionist, doctor, nurse) get no access to salary data.
 
@@ -77,34 +76,60 @@ The status is computed from punches and the policy, and recomputed when punches,
 change, until payroll for that month is finalized. After finalization the day is locked, and later
 corrections become payroll **adjustments** in the next run.
 
-### 2.3 QR check-in
+### 2.3 Marking attendance (pilot flow, decided 2026-11-10)
 
-- A kiosk device at each branch shows a QR code that **rotates every 30–60 seconds**. Each code is a signed,
-  short-lived challenge tied to that branch, so a screenshot stops working almost immediately.
-- The employee scans it with their phone while logged in to HealthOS. The server checks the code is
-  valid, unexpired, for that branch and not already used, then records the punch for the logged-in employee.
-- The first scan of the day is check-in and later scans are check-out (subject to the minimum punch gap).
-- Optional later: GPS/Wi-Fi checks, which need a privacy notice and a lawful basis.
+**Flow:** fixed QR at the branch → Employee ID → OTP to the registered mobile → location check →
+attendance marked. **Attendance is marked only if both the OTP and the location check pass.**
 
-**Preventing proxy attendance (someone marking attendance for a colleague):**
+1. Each branch displays a **fixed (printed) QR code**. It encodes a link to the branch's attendance page
+   (an unguessable branch token, not the internal id). No screen or kiosk is needed. The admin can
+   regenerate the code if it leaks.
+2. The employee scans it on their own phone, which opens the attendance page for that branch. The
+   employee does not need to be signed in.
+3. They enter their **Employee ID**. The server sends a **6-digit OTP** by SMS to the mobile number HR
+   saved on that employee's profile. The page shows the same response whether or not the ID exists
+   ("If this Employee ID is registered, an OTP has been sent"), so nobody can probe for valid IDs.
+4. They enter the OTP. The browser asks for the phone's **location** (HTTPS, high-accuracy mode).
+5. The server checks:
+   - the OTP is correct, unexpired (5 minutes), single-use, and for this employee and branch;
+   - the employee belongs to this branch (or is allowed to mark attendance there) and is active;
+   - the location is within the branch's **geofence radius**, and the phone's reported accuracy is good
+     enough to verify it.
+6. **Both checks pass:** the punch is recorded (first punch of the day = check-in, later = check-out,
+   respecting the minimum punch gap), and the page confirms the time.
+   **Either check fails:** nothing is marked. The page explains why (wrong or expired OTP, outside the
+   area, location off, or location too imprecise), and the failed attempt is logged with its reason.
 
-1. **Mobile-number login.** Employees log in with their mobile number and an OTP, so there is no password
-   to share. The OTP provider is behind an adapter; development uses a console adapter.
-2. **One registered phone per employee.** The first login registers that phone (a device key kept on
-   the phone). Check-in is accepted only from the registered phone. A new phone needs an OTP to the
-   registered number **and** HR approval. Until SMS is set up, HR issues a one-time activation code in
-   person instead of the OTP.
-3. **One phone, one employee per day.** If a phone already used by employee A punches for employee B, the
-   punch is **held for HR review** and doesn't count automatically.
-4. **Suspicious-punch flags** go to the HR review queue: a punch during approved leave, a new or unknown
-   phone, or unusual timing patterns.
-5. **Optional check-in photo per branch.** The phone takes a selfie at check-in for manager spot-checks.
-   This is a photo only, with no automatic face recognition. Employees are told about it, and photos have
-   a retention limit.
-6. Every punch records the employee, phone, branch, QR challenge, time and source for the audit trail.
+**Geofence settings (per branch, admin-configurable):**
 
-A phone-based system cannot make proxy attendance completely impossible. These measures make it hard
-to do and easy to detect. Biometric terminals (a later phase) need a privacy and vendor review first.
+| Setting                    | Default  | Notes                                                                                                                                                     |
+| -------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Branch location (lat/long) | —        | Admin sets it on a map or by "use my current location" while standing at the clinic                                                                       |
+| Radius                     | 10 m     | Product owner's choice. Phone GPS indoors is often 15–50 m, so test with several phones before go-live and raise to 30–50 m if genuine staff are rejected |
+| Maximum accepted accuracy  | = radius | If the phone reports accuracy worse than this, the attempt is rejected as "too imprecise" with guidance (turn on precise location, move near a window)    |
+
+A punch passes when `distance_to_branch ≤ radius` and `reported_accuracy ≤ max_accuracy`.
+
+**Safeguards:**
+
+- OTP: 6 digits, 5-minute expiry, single use, at most 5 wrong attempts per OTP; rate limits per
+  Employee ID, per phone number and per IP; a cooldown between OTP requests. OTPs are stored hashed and
+  never logged.
+- Location data minimization: each punch stores only the distance from the branch, the reported accuracy
+  and the pass/fail result, not a location history. Employees get a notice that location is checked only
+  at the moment they mark attendance (DPDP; legal review).
+- Every attempt (success or failure) records employee, branch, time, OTP result, geofence result and
+  source `qr_otp_geo` for the audit trail.
+- **Can't check in?** (GPS indoors, phone problem): the employee raises a regularization request (2.5)
+  or HR marks attendance manually with a mandatory reason. Both are audit-logged.
+
+**Known limits (accepted for the pilot):** GPS can be spoofed by a determined user, and an employee could
+hand their unlocked phone to a colleague who is at the clinic. OTP + geofence stops the common cases:
+marking from home with a photo of the QR, and colleagues marking for each other without the phone.
+Later options: rotating QR on a screen, registered-device binding, check-in photo, biometric terminals.
+
+**SMS dependency:** OTPs go through the SMS adapter (MSG91 or similar) and need DLT template registration
+in India. In development and tests a console adapter is used. Each check-in and check-out sends one SMS.
 
 ### 2.4 Screens
 
@@ -256,7 +281,7 @@ exact decimals.
 
 - Late counting: on time within grace; free lates not penalized; each penalty mode calculates correctly.
 - Status computation: full/half/reduced/absent boundaries; week-offs and holidays; leave overrides.
-- QR: expired, reused, wrong-branch and forged codes are rejected; the minimum punch gap is respected.
+- Check-in: wrong, expired, reused or other-employee OTPs are rejected; outside the radius or too-imprecise location is rejected; nothing is marked unless both checks pass; unknown Employee IDs get the same response as known ones; rate limits apply; the minimum punch gap is respected; another tenant's branch token never works.
 - Manual edit without a reason is rejected, and an edit with a reason writes an audit entry.
 - Leave: balance math (accrual, carry forward, half days, sandwich rule); LOP when exceeded; 1- and
   2-level approval; a manager cannot approve leave for someone outside their team; an employee cannot

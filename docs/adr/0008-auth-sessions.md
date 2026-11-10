@@ -1,6 +1,6 @@
 # 0008: Authentication: sessions, staff and employee login
 
-**Status:** Accepted (staff login in Phase 2; employee mobile login in Phase 8/9a)
+**Status:** Accepted (staff login done in Phase 2; employee OTP flows in Phases 8/9a)
 
 ## Context
 
@@ -31,17 +31,19 @@ The product owner asked for the option that is "best and easy to implement".
 - Admins invite users. There is no public sign-up.
 - MFA (TOTP authenticator app) for owners, admins and payroll roles is planned as a follow-up, not a pilot blocker.
 
-### Employee login: mobile number + OTP, with one registered phone
+### Employees: OTP-based, no password
 
-- An employee is identified by the mobile number HR enters on their profile. The OTP goes through the
-  SMS provider adapter (MSG91 or similar; development uses a console adapter that never sends real SMS).
-- The first successful login registers that phone (a device key kept on the phone). Attendance check-in
-  is accepted only from the registered phone.
-- Registering a new phone needs an OTP **and** HR approval.
-- **Until the SMS provider and DLT registration are ready**, HR can generate a one-time activation code
-  (short expiry, single use, audit-logged) and give it to the employee in person.
-- OTP possession is not proof of identity on its own (spec rule). It is combined with device registration
-  and the anti-proxy checks in `docs/requirements/hr-attendance-leave-payroll.md` §2.3.
+- **Marking attendance (pilot):** no login. The employee scans the branch's fixed QR, enters their Employee
+  ID, receives an SMS OTP on the mobile number HR saved, and the server also checks the phone's location
+  against the branch geofence. Attendance is recorded only if both pass. Full rules are in
+  `docs/requirements/hr-attendance-leave-payroll.md` §2.3.
+- **Self-service (own attendance, leave, payslips):** sign in with mobile number + OTP, using the same
+  session model as staff.
+- OTPs go through the SMS provider adapter (MSG91 or similar; development uses a console adapter that
+  never sends real SMS). They are stored hashed, expire in 5 minutes, are single-use and rate-limited.
+- OTP possession is not proof of identity on its own (spec rule). For attendance it is combined with the
+  geofence check. Device binding, a rotating QR, or a check-in photo can be added later if proxy
+  attendance turns out to be a problem.
 
 ## Consequences
 
