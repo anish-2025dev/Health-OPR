@@ -4,9 +4,9 @@ Multi-tenant B2B SaaS for hospitals, clinics and nursing homes in India. It cove
 appointments, queues, WhatsApp self-service for existing patients, and staff management, attendance,
 leave and payroll.
 
-> **Status:** Phase 0 + application foundation. The monorepo, dev environment, an Express API with
-> health checks and a React web shell are in place. **There are no business features yet.**
-> Use synthetic data only.
+> **Status:** Phase 2 complete: multi-tenant foundation with organizations, branches, staff users,
+> roles and permissions, secure sign-in, PostgreSQL row-level security and an audit log. Patient, HR and
+> payroll modules come next (see [roadmap](docs/roadmap.md)). Use synthetic data only.
 
 The primary requirements document is
 [`docs/healthos-platform-project-spec.json`](docs/healthos-platform-project-spec.json). Where the
@@ -62,10 +62,16 @@ make migrate
 ```
 
 ```bash
+npm run org:create --workspace apps/api -- --name "Demo Clinic" --slug demo-clinic --owner-email owner@demo.test --owner-name "Demo Owner"
+```
+
+```bash
 make dev
 ```
 
-4. Open the forwarded **5173** port (web). The API is on **4000**.
+4. Open the forwarded **5173** port and sign in with the owner email and the temporary password printed
+   by `org:create`. You'll be asked to set your own password. The web dev server proxies `/api` to the
+   API on **4000**.
 
 ### Locally
 
@@ -84,29 +90,60 @@ make migrate
 ```
 
 ```bash
+npm run org:create --workspace apps/api -- --name "Demo Clinic" --slug demo-clinic --owner-email owner@demo.test --owner-name "Demo Owner"
+```
+
+```bash
 make dev
 ```
 
+> **Upgrading from Phase 0/1?** The local database now uses a separate non-superuser role for the API
+> (row-level security doesn't apply to superusers). Copy the new `POSTGRES_*` and `DATABASE_URL` values from
+> `.env.example` into `.env`, then recreate the local volume once (this deletes local dev data):
+>
+> ```bash
+> docker compose down -v
+> ```
+
 ## Commands
 
-| Command                     | What it does                                           |
-| --------------------------- | ------------------------------------------------------ |
-| `make up` / `make down`     | Start / stop PostgreSQL and Redis (data is kept)       |
-| `make dev`                  | API on :4000 and web on :5173 with reload              |
-| `make test`                 | All unit/integration tests                             |
-| `make lint`                 | ESLint + Prettier check                                |
-| `make migrate` / `rollback` | Apply / roll back database migrations                  |
-| `npm run db:make -- <name>` | Create a new migration in `apps/api/src/db/migrations` |
-| `npm run build`             | Production build of the web app                        |
+| Command                                         | What it does                                               |
+| ----------------------------------------------- | ---------------------------------------------------------- |
+| `make up` / `make down`                         | Start / stop PostgreSQL and Redis (data is kept)           |
+| `make dev`                                      | API on :4000 and web on :5173 with reload                  |
+| `make test`                                     | Unit tests (no database needed)                            |
+| `npm run test:integration --workspace apps/api` | API integration tests against PostgreSQL (`make up` first) |
+| `npm run org:create --workspace apps/api -- …`  | Create an organization, main branch and owner account      |
+| `make lint`                                     | ESLint + Prettier check                                    |
+| `make migrate` / `rollback`                     | Apply / roll back database migrations                      |
+| `npm run db:make -- <name>`                     | Create a new migration in `apps/api/src/db/migrations`     |
+| `npm run build`                                 | Production build of the web app                            |
 
 ## API
 
 Base path: `/api/v1`. JSON only.
 
-| Endpoint                   | Purpose                                                |
-| -------------------------- | ------------------------------------------------------ |
-| `GET /api/v1/health`       | Liveness: `{"status":"ok"}`                            |
-| `GET /api/v1/health/ready` | Readiness: checks PostgreSQL and Redis; `200` or `503` |
+| Endpoint                                | Auth / permission                                 | Purpose                                                |
+| --------------------------------------- | ------------------------------------------------- | ------------------------------------------------------ |
+| `GET /health`                           | public                                            | Liveness: `{"status":"ok"}`                            |
+| `GET /health/ready`                     | public                                            | Readiness: checks PostgreSQL and Redis; `200` or `503` |
+| `POST /auth/login`                      | public, rate-limited                              | Email + password → access token + refresh cookie       |
+| `POST /auth/refresh`                    | refresh cookie + `X-Requested-With: healthos-web` | Rotate refresh token, new access token                 |
+| `POST /auth/logout`                     | refresh cookie + header                           | End the session                                        |
+| `GET /auth/me`                          | signed in                                         | User, organization, roles, permissions, branch scope   |
+| `POST /auth/change-password`            | signed in                                         | Change own password; signs out other sessions          |
+| `GET /organizations/current`            | signed in                                         | Current organization                                   |
+| `PATCH /organizations/current`          | `organization.manage`                             | Update name, legal name, timezone                      |
+| `GET /branches`                         | `branches.read`                                   | Branches (limited to the user's branch scope)          |
+| `POST /branches`, `PATCH /branches/:id` | `branches.manage`                                 | Create / update / deactivate a branch                  |
+| `GET /users`, `GET /users/roles`        | `users.read`                                      | Staff users with roles; role catalog                   |
+| `POST /users`                           | `users.manage`                                    | Create a user; returns a one-time temporary password   |
+| `PATCH /users/:id`                      | `users.manage`                                    | Update name/phone, enable/disable (ends sessions)      |
+| `PUT /users/:id/roles`                  | `users.manage`                                    | Replace role assignments                               |
+| `POST /users/:id/reset-password`        | `users.manage`                                    | New temporary password; ends sessions                  |
+| `GET /audit-logs?limit&before&action`   | `audit.read`                                      | Audit entries, newest first                            |
+
+All paths are under `/api/v1`. Signed-in requests send `Authorization: Bearer <accessToken>`.
 
 Errors always use one envelope with a machine-readable code:
 
@@ -133,9 +170,11 @@ credentials as **Codespaces Secrets**. In production, use a managed secret store
 | `DATABASE_URL`                                                          | API     | PostgreSQL connection string; needs `?sslmode=require` outside dev                      |
 | `DATABASE_MIGRATION_URL`                                                | API     | Optional direct (non-pooled) URL for migrations; falls back to `DATABASE_URL`           |
 | `REDIS_URL`                                                             | API     | Redis connection string                                                                 |
-| `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` / `POSTGRES_PORT` | Compose | Local database container                                                                |
+| `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` / `POSTGRES_PORT` | Compose | Local database container (superuser, admin only)                                        |
+| `POSTGRES_APP_USER` / `POSTGRES_APP_PASSWORD`                           | Compose | Non-superuser role the API connects as locally                                          |
+| `TEST_DATABASE_URL`                                                     | Tests   | Optional; integration tests default to `DATABASE_URL` with database `healthos_test`     |
 | `REDIS_PORT`                                                            | Compose | Local Redis container                                                                   |
-| `VITE_API_BASE_URL`                                                     | Web     | Public; never put secrets in `VITE_*`                                                   |
+| `VITE_API_BASE_URL`                                                     | Web     | Default `/api/v1` (same origin). Public; never put secrets in `VITE_*`                  |
 | `WHATSAPP_*`, `MSG91_*`, `S3_BUCKET`, `AWS_REGION`                      | API     | Integrations in later phases; leave empty for now                                       |
 
 ## Deployment

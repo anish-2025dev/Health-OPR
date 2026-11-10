@@ -17,6 +17,13 @@ export default defineConfig({
     port: 5173,
     host: true,
     strictPort: true,
+    // Same-origin API in development (mirrors the Render /api rewrite), so auth cookies are first-party.
+    proxy: {
+      '/api': {
+        target: process.env.API_PROXY_TARGET ?? 'http://localhost:4000',
+        changeOrigin: false,
+      },
+    },
   },
   test: {
     environment: 'jsdom',

@@ -53,6 +53,9 @@ jobs:
       - name: Apply migrations to a throwaway database
         run: npm run db:migrate
 
+      - name: Integration tests (auth, tenant isolation, RLS, permissions)
+        run: npm run test:integration --workspace apps/api
+
       - name: API readiness smoke test
         run: |
           npm run start --workspace apps/api &

@@ -1,15 +1,22 @@
 import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import { pinoHttp } from 'pino-http';
 import { apiV1Router } from './api/v1/index.js';
 import { errorHandler, notFoundHandler, requestId } from './core/middleware.js';
 
 /**
  * Builds the Express app. Dependencies are injected so tests can run without live services.
- * @param {{ config: object, logger: import('pino').Logger, checks: Record<string, () => Promise<unknown>> }} deps
+ * @param {{
+ *   config: object,
+ *   logger: import('pino').Logger,
+ *   checks: Record<string, () => Promise<unknown>>,
+ *   db?: import('knex').Knex,
+ *   rateLimitStore?: { increment(key: string, windowSec: number): Promise<number> },
+ * }} deps
  */
-export function createApp({ config, logger, checks }) {
+export function createApp({ config, logger, checks, db, rateLimitStore }) {
   const app = express();
 
   app.disable('x-powered-by');
@@ -36,8 +43,14 @@ export function createApp({ config, logger, checks }) {
     }),
   );
   app.use(express.json({ limit: '1mb' }));
+  app.use(cookieParser());
+  // Authenticated API responses must never be cached by browsers or proxies.
+  app.use('/api/v1', (req, res, next) => {
+    res.set('Cache-Control', 'no-store');
+    next();
+  });
 
-  app.use('/api/v1', apiV1Router({ config, checks }));
+  app.use('/api/v1', apiV1Router({ config, checks, db, rateLimitStore }));
 
   app.use(notFoundHandler);
   app.use(errorHandler);

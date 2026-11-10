@@ -23,6 +23,10 @@ before speed.
 npm run lint && npm run format:check && npm test && npm run build
 ```
 
+```bash
+npm run test:integration --workspace apps/api
+```
+
 6. Update the README, `.env.example` and API docs whenever setup, variables or endpoints change.
 7. **Ask before implementing** anything ambiguous that affects patient safety, privacy, payroll
    correctness or legal compliance.
@@ -35,8 +39,11 @@ npm run lint && npm run format:check && npm test && npm run build
   gratuity rules). They live in effective-dated `statutory_rules` records with jurisdiction,
   `effective_from`/`effective_to`, `source_reference` and approval status.
 - **Tenant isolation.** Every tenant-owned table has `organization_id` (and `branch_id` where it
-  applies). Every repository query filters by the caller's tenant context. PostgreSQL RLS policies are a
-  second layer of protection, never the only one. Add a cross-tenant test for every new module.
+  applies), with RLS **enabled and forced** in its migration (copy the policy from the Phase 2
+  tenancy migration). Every repository query filters by the caller's tenant context **and** runs inside
+  `withTenant(db, req.auth.organizationId, …)`. RLS is the second layer, never the only one. Use
+  `withSystem()` only for pre-tenant lookups such as login; never in request handlers for tenant data.
+  Add a cross-tenant test for every new module (`apps/api/tests/integration`).
 - **Authorization on the backend.** Hiding something in the UI is not access control. Check permission
   and object ownership on every access to prevent IDOR.
 - **Transactions** for booking, token generation, payroll finalization and anything that must be atomic.

@@ -6,13 +6,18 @@ services:
     image: postgres:17-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-healthos}
+      # Superuser for local administration only. The API never connects as this role.
+      POSTGRES_USER: ${POSTGRES_USER:-healthos_admin}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env (copy .env.example)}
       POSTGRES_DB: ${POSTGRES_DB:-healthos}
+      # Non-superuser role the API connects as (created by infrastructure/docker/postgres-init).
+      POSTGRES_APP_USER: ${POSTGRES_APP_USER:-healthos_app}
+      POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD:?Set POSTGRES_APP_PASSWORD in .env (copy .env.example)}
     ports:
       - '${POSTGRES_PORT:-5432}:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/docker/postgres-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
       interval: 5s

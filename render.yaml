@@ -63,6 +63,13 @@ services:
         - package-lock.json
         - render.yaml
     routes:
+      # Proxy the API through the web origin so the HttpOnly refresh cookie is first-party
+      # (onrender.com is a public suffix, so two onrender.com services are different sites).
+      # If Render assigns the API a different URL, update this destination to match.
+      - type: rewrite
+        source: /api/*
+        destination: https://healthos-api.onrender.com/api/*
+      # Single-page app: every other path serves index.html.
       - type: rewrite
         source: /*
         destination: /index.html
@@ -85,9 +92,9 @@ services:
     envVars:
       - key: NODE_VERSION
         value: '22'
-      # Public, baked into the bundle at build time: https://<healthos-api host>/api/v1
+      # Public, baked into the bundle at build time. Same-origin path via the /api rewrite above.
       - key: VITE_API_BASE_URL
-        sync: false
+        value: /api/v1
 
   # ---------------------------------------------------------------- Redis-compatible cache / queue
   - type: keyvalue

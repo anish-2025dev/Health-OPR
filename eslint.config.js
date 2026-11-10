@@ -38,6 +38,11 @@ export default [
     languageOptions: { globals: { ...globals.node } },
   },
   {
+    // Command-line scripts talk to the operator through the console.
+    files: ['**/scripts/**/*.js'],
+    rules: { 'no-console': 'off' },
+  },
+  {
     files: ['**/*.test.{js,jsx}', '**/tests/**', 'apps/web/src/test/**'],
     languageOptions: { globals: { ...globals.node, ...globals.vitest } },
   },
