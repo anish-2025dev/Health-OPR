@@ -68,7 +68,7 @@ services:
       # If Render assigns the API a different URL, update this destination to match.
       - type: rewrite
         source: /api/*
-        destination: https://healthos-api.onrender.com/api/*
+        destination: https://healthos-api-gjr1.onrender.com/api/*
       # Single-page app: every other path serves index.html.
       - type: rewrite
         source: /*
