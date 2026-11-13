@@ -78,3 +78,13 @@ describe('loadConfig', () => {
     }
   });
 });
+
+describe('PATIENT_SITE_URL', () => {
+  it('falls back to FRONTEND_URL when a deployment has not set it yet', () => {
+    const { PATIENT_SITE_URL, ...withoutPatientSite } = production();
+    expect(PATIENT_SITE_URL).toBeTruthy();
+    const config = loadConfig(withoutPatientSite);
+    expect(config.PATIENT_SITE_URL).toBe('https://healthos-web.onrender.com');
+    expect(config.PATIENT_SITE_URL_SET).toBe(false);
+  });
+});

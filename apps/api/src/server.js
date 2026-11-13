@@ -21,6 +21,11 @@ if (sms.provider === 'none') {
   );
 }
 
+if (!config.PATIENT_SITE_URL_SET && config.APP_ENV !== 'development' && config.APP_ENV !== 'test') {
+  logger.warn(
+    'PATIENT_SITE_URL is not set: patient links use FRONTEND_URL until the patient website is deployed',
+  );
+}
 const whatsapp = createWhatsAppSender(config);
 if (whatsapp.provider === 'none') {
   logger.info(

@@ -36,7 +36,9 @@ const schema = z
     API_PORT: z.coerce.number().int().positive().default(4000),
     FRONTEND_URL: z.string().url().default('http://localhost:5173'),
     // Patient website (separate deployment). Used for CORS and for links sent to patients.
-    PATIENT_SITE_URL: z.string().url().default('http://localhost:5174'),
+    // Optional: when unset, development uses localhost:5174 and deployed environments fall back to
+    // FRONTEND_URL (the staff site also serves the tracking page) until the patient site is set up.
+    PATIENT_SITE_URL: z.string().url().optional(),
     PATIENT_SESSION_DAYS: z.coerce.number().int().min(1).max(180).default(30),
     ACCESS_TOKEN_EXPIRE_MINUTES: z.coerce.number().int().positive().default(15),
     REFRESH_TOKEN_EXPIRE_DAYS: z.coerce.number().int().positive().default(14),
@@ -105,7 +107,7 @@ const schema = z
         message: 'must be the https:// URL of the deployed web app in staging/production',
       });
     }
-    if (!env.PATIENT_SITE_URL.startsWith('https://')) {
+    if (env.PATIENT_SITE_URL && !env.PATIENT_SITE_URL.startsWith('https://')) {
       ctx.addIssue({
         code: 'custom',
         path: ['PATIENT_SITE_URL'],
@@ -113,7 +115,16 @@ const schema = z
       });
     }
   })
-  .transform(({ PORT, ...env }) => ({ ...env, API_PORT: PORT ?? env.API_PORT }));
+  .transform(({ PORT, ...env }) => {
+    const deployed = env.APP_ENV === 'staging' || env.APP_ENV === 'production';
+    return {
+      ...env,
+      API_PORT: PORT ?? env.API_PORT,
+      PATIENT_SITE_URL:
+        env.PATIENT_SITE_URL ?? (deployed ? env.FRONTEND_URL : 'http://localhost:5174'),
+      PATIENT_SITE_URL_SET: Boolean(env.PATIENT_SITE_URL),
+    };
+  });
 
 export function loadConfig(source = process.env) {
   const parsed = schema.safeParse(source);
