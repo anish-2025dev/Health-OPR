@@ -79,6 +79,13 @@ Sign in with the mobile number (the code appears on screen). When asked, the hos
 | 9000000205 | Neha                                                                           |
 | 9000000206 | Arun                                                                           |
 
+### Registering new people during the demo
+
+The demo sends no SMS, so codes appear on screen **only for demo numbers**: 10 digits starting with
+`9000000`, for example `9000000300`, `9000000301`. When a receptionist registers a new patient (or HR adds
+an employee) for someone to sign in as, use such a number. A real mobile number is saved, but that person
+can't sign in on the demo ("This is a demo, so no SMS is sent").
+
 ## What's already in the demo
 
 - 12 employees in 3 departments. **Last month:** full attendance with some late arrivals, half days and

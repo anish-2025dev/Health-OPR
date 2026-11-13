@@ -384,6 +384,15 @@ export function PatientDetailPage() {
     mutationFn: ({ path, body }) => apiFetch(`/patients/${id}${path}`, { method: 'POST', body }),
     onSuccess: refresh,
   });
+  const setStatus = useMutation({
+    mutationFn: (status) => apiFetch(`/patients/${id}`, { method: 'PATCH', body: { status } }),
+    onSuccess: () => {
+      refresh();
+      qc.invalidateQueries({ queryKey: ['queue'] });
+      qc.invalidateQueries({ queryKey: ['appointments'] });
+      qc.invalidateQueries({ queryKey: ['queue-summary'] });
+    },
+  });
   const [link, setLink] = useState({ phone: '', relationship: 'parent' });
   const [request, setRequest] = useState({ requestType: 'access', details: '' });
   const raise = useMutation({
@@ -406,6 +415,31 @@ export function PatientDetailPage() {
         actions={
           <div className="flex items-center gap-2">
             <Badge tone={STATUS_TONE[p.status]}>{p.status}</Badge>
+            {canManage && p.status === 'active' && (
+              <Button
+                variant="danger"
+                disabled={setStatus.isPending}
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      'Mark this patient inactive? Their bookings and queue tokens are cancelled. The record and visit history are kept, and you can reactivate it later.',
+                    )
+                  )
+                    setStatus.mutate('inactive');
+                }}
+              >
+                Mark inactive
+              </Button>
+            )}
+            {canManage && p.status === 'inactive' && (
+              <Button
+                variant="secondary"
+                disabled={setStatus.isPending}
+                onClick={() => setStatus.mutate('active')}
+              >
+                Reactivate
+              </Button>
+            )}
             {p.status === 'active' && auth.can('appointments.manage') && (
               <Link
                 to={`/reception?patientId=${p.id}`}
@@ -417,6 +451,11 @@ export function PatientDetailPage() {
           </div>
         }
       />
+      {setStatus.error && (
+        <div className="mb-4">
+          <ErrorMessage error={setStatus.error} />
+        </div>
+      )}
       {p.status === 'merged' && (
         <div className="mb-4">
           <Alert tone="amber">

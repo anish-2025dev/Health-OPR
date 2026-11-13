@@ -382,6 +382,92 @@ function QueueBoard({ doctorId, date }) {
   if (board.isPending) return <Spinner />;
   if (board.error) return <ErrorMessage error={board.error} />;
   const b = board.data;
+  const CLOSED = ['completed', 'cancelled', 'no_show'];
+  const openEntries = b.entries.filter((e) => !CLOSED.includes(e.status));
+  const closedEntries = b.entries.filter((e) => CLOSED.includes(e.status));
+  const renderRow = (e) => {
+    const [label, tone] = QUEUE_STATUS[e.status];
+    const btn = (action, text, variant = 'secondary') => (
+      <Button size="sm" variant={variant} onClick={() => act.mutate({ entry: e, action })}>
+        {text}
+      </Button>
+    );
+    return (
+      <tr
+        key={e.id}
+        className={['completed', 'cancelled', 'no_show'].includes(e.status) ? 'text-slate-400' : ''}
+      >
+        <td className="py-2 pr-3 text-lg font-semibold">{e.token}</td>
+        <td className="py-2 pr-3">
+          <Link to={`/patients/${e.patient.id}`} className="font-medium text-brand-700">
+            {e.patient.fullName}
+          </Link>
+          <span className="block text-xs text-slate-500">
+            {e.kind === 'walk_in' ? 'Walk-in' : 'Appointment'}
+            {e.priority > 0 && ` · ${PRIORITY[e.priority]}`}
+          </span>
+        </td>
+        <td className="py-2 pr-3">{e.slotStart ? timeOf(e.slotStart) : '—'}</td>
+        <td className="py-2 pr-3">
+          <Badge tone={tone}>{label}</Badge>
+        </td>
+        <td className="py-2">
+          {b.isToday && (
+            <div className="flex flex-wrap gap-1">
+              {e.status === 'booked' && btn('check-in', 'Arrived', 'primary')}
+              {['waiting', 'called'].includes(e.status) &&
+                btn('call', e.status === 'called' ? 'Call again' : 'Call')}
+              {['waiting', 'called'].includes(e.status) && btn('start', 'Start')}
+              {['called', 'in_consultation'].includes(e.status) &&
+                btn('complete', 'Done', 'primary')}
+              {['booked', 'waiting', 'called'].includes(e.status) &&
+                btn('no-show', 'No-show', 'ghost')}
+              {['called', 'no_show'].includes(e.status) && btn('requeue', 'Back to queue', 'ghost')}
+              {canManage &&
+                ['booked', 'waiting', 'called', 'in_consultation'].includes(e.status) &&
+                e.priority < 2 && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() =>
+                      withReason(e, 'priority', 'Why does this patient need priority?')
+                    }
+                  >
+                    Prioritize
+                  </Button>
+                )}
+              {canManage && ['booked', 'waiting', 'called'].includes(e.status) && (
+                <Button
+                  size="sm"
+                  variant="danger"
+                  onClick={() => withReason(e, 'cancel', 'Reason for cancelling')}
+                >
+                  Cancel
+                </Button>
+              )}
+            </div>
+          )}
+          {!b.isToday && canManage && e.status === 'booked' && e.appointmentId && (
+            <Button
+              size="sm"
+              variant="danger"
+              onClick={() => {
+                const reason = window.prompt('Reason for cancelling');
+                if (reason)
+                  apiFetch(`/appointments/${e.appointmentId}/cancel`, {
+                    method: 'POST',
+                    body: { reason },
+                  }).then(refresh);
+              }}
+            >
+              Cancel
+            </Button>
+          )}
+        </td>
+      </tr>
+    );
+  };
+
   return (
     <Card
       title={`Queue · ${b.doctor.displayName}`}
@@ -420,6 +506,9 @@ function QueueBoard({ doctorId, date }) {
       {b.entries.length === 0 && (
         <p className="text-sm text-slate-500">No bookings for this day.</p>
       )}
+      {b.entries.length > 0 && openEntries.length === 0 && (
+        <p className="text-sm text-slate-500">Nobody is waiting.</p>
+      )}
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">
           <thead className="text-xs text-slate-500 uppercase">
@@ -431,99 +520,21 @@ function QueueBoard({ doctorId, date }) {
               <th className="py-2">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
-            {b.entries.map((e) => {
-              const [label, tone] = QUEUE_STATUS[e.status];
-              const btn = (action, text, variant = 'secondary') => (
-                <Button
-                  size="sm"
-                  variant={variant}
-                  onClick={() => act.mutate({ entry: e, action })}
-                >
-                  {text}
-                </Button>
-              );
-              return (
-                <tr
-                  key={e.id}
-                  className={
-                    ['completed', 'cancelled', 'no_show'].includes(e.status) ? 'text-slate-400' : ''
-                  }
-                >
-                  <td className="py-2 pr-3 text-lg font-semibold">{e.token}</td>
-                  <td className="py-2 pr-3">
-                    <Link to={`/patients/${e.patient.id}`} className="font-medium text-brand-700">
-                      {e.patient.fullName}
-                    </Link>
-                    <span className="block text-xs text-slate-500">
-                      {e.kind === 'walk_in' ? 'Walk-in' : 'Appointment'}
-                      {e.priority > 0 && ` · ${PRIORITY[e.priority]}`}
-                    </span>
-                  </td>
-                  <td className="py-2 pr-3">{e.slotStart ? timeOf(e.slotStart) : '—'}</td>
-                  <td className="py-2 pr-3">
-                    <Badge tone={tone}>{label}</Badge>
-                  </td>
-                  <td className="py-2">
-                    {b.isToday && (
-                      <div className="flex flex-wrap gap-1">
-                        {e.status === 'booked' && btn('check-in', 'Arrived', 'primary')}
-                        {['waiting', 'called'].includes(e.status) &&
-                          btn('call', e.status === 'called' ? 'Call again' : 'Call')}
-                        {['waiting', 'called'].includes(e.status) && btn('start', 'Start')}
-                        {['called', 'in_consultation'].includes(e.status) &&
-                          btn('complete', 'Done', 'primary')}
-                        {['booked', 'waiting', 'called'].includes(e.status) &&
-                          btn('no-show', 'No-show', 'ghost')}
-                        {['called', 'no_show'].includes(e.status) &&
-                          btn('requeue', 'Back to queue', 'ghost')}
-                        {canManage &&
-                          ['booked', 'waiting', 'called', 'in_consultation'].includes(e.status) &&
-                          e.priority < 2 && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() =>
-                                withReason(e, 'priority', 'Why does this patient need priority?')
-                              }
-                            >
-                              Prioritize
-                            </Button>
-                          )}
-                        {canManage && ['booked', 'waiting', 'called'].includes(e.status) && (
-                          <Button
-                            size="sm"
-                            variant="danger"
-                            onClick={() => withReason(e, 'cancel', 'Reason for cancelling')}
-                          >
-                            Cancel
-                          </Button>
-                        )}
-                      </div>
-                    )}
-                    {!b.isToday && canManage && e.status === 'booked' && e.appointmentId && (
-                      <Button
-                        size="sm"
-                        variant="danger"
-                        onClick={() => {
-                          const reason = window.prompt('Reason for cancelling');
-                          if (reason)
-                            apiFetch(`/appointments/${e.appointmentId}/cancel`, {
-                              method: 'POST',
-                              body: { reason },
-                            }).then(refresh);
-                        }}
-                      >
-                        Cancel
-                      </Button>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
+          <tbody className="divide-y divide-slate-100">{openEntries.map(renderRow)}</tbody>
         </table>
       </div>
+      {closedEntries.length > 0 && (
+        <details className="mt-4">
+          <summary className="cursor-pointer text-sm text-slate-600">
+            Done, cancelled and no-shows ({closedEntries.length}): no longer in the queue
+          </summary>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <tbody className="divide-y divide-slate-100">{closedEntries.map(renderRow)}</tbody>
+            </table>
+          </div>
+        </details>
+      )}
     </Card>
   );
 }

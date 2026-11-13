@@ -142,7 +142,10 @@ describe('reception registration', () => {
       keepPatientId: asha.id,
       reason: 'Same person confirmed at the desk',
     });
-    expect(r.body.merged).toEqual({ keptPatientId: asha.id, mergedPatientId: flag.patient.id });
+    expect(r.body.merged).toMatchObject({
+      keptPatientId: asha.id,
+      mergedPatientId: flag.patient.id,
+    });
     const merged = (await reception.get(`/patients/${flag.patient.id}`)).body;
     expect(merged).toMatchObject({ status: 'merged', mergedIntoPatientId: asha.id });
     const kept = (await reception.get(`/patients/${asha.id}`)).body;

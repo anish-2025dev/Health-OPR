@@ -192,6 +192,14 @@ export function patientAuthRouter({ db, config, sms, tokens, rateLimitStore }) {
         await sms.sendOtp({ to: phone, code, purpose: 'patient_login' });
       } catch (err) {
         if (err instanceof SmsNotConfiguredError) {
+          // The demo has no SMS account: only its fictional numbers can sign in.
+          if (demoCodesEnabled(config)) {
+            throw new AppError(
+              503,
+              'DEMO_NUMBERS_ONLY',
+              'This is a demo, so no SMS is sent. Use a demo number that starts with 90000 00 (for example 90000 00300).',
+            );
+          }
           throw new AppError(
             503,
             'SMS_NOT_CONFIGURED',
