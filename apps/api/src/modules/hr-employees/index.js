@@ -6,6 +6,7 @@ import { AppError, conflict, notFound } from '../../core/errors.js';
 import { maskMobile, mobileSchema } from '../../core/phone.js';
 import { auditContext, recordAudit } from '../audit/index.js';
 import { PERMISSIONS, requirePermission } from '../staff-access/permissions.js';
+import { registerImportRoute } from './import.js';
 
 const P = PERMISSIONS;
 const DATE = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD');
@@ -223,7 +224,7 @@ function translateUniqueViolation(err) {
   return conflict('DUPLICATE', 'A record with these details already exists');
 }
 
-async function nextEmployeeNumber(trx, organizationId) {
+export async function nextEmployeeNumber(trx, organizationId) {
   for (let attempt = 0; attempt < 20; attempt++) {
     // Atomic per-organization counter; concurrent creates get different numbers.
     const {
@@ -247,6 +248,7 @@ async function nextEmployeeNumber(trx, organizationId) {
 
 export function employeesRouter({ db }) {
   const router = Router();
+  registerImportRoute(router, { db }); // POST /import (before /:id routes)
 
   router.get('/', requirePermission(P.EMPLOYEES_READ), async (req, res) => {
     const q = validate(listQuery, req.query);

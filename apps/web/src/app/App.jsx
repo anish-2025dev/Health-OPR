@@ -8,6 +8,7 @@ import { UsersPage } from '@/features/users/UsersPage';
 import { AuditPage } from '@/features/audit/AuditPage';
 import { EmployeesPage } from '@/features/employees/EmployeesPage';
 import { EmployeeFormPage } from '@/features/employees/EmployeeFormPage';
+import { ImportEmployeesPage } from '@/features/employees/ImportEmployeesPage';
 import { HolidaysPage } from '@/features/org-structure/HolidaysPage';
 import { CompanySetupPage } from '@/features/org-structure/CompanySetupPage';
 import { EmployeeLoginPage } from '@/features/auth/EmployeeLoginPage';
@@ -262,6 +263,14 @@ export function App() {
           element={
             <RequirePermission permission="employees.read">
               <EmployeesPage />
+            </RequirePermission>
+          }
+        />
+        <Route
+          path="employees/import"
+          element={
+            <RequirePermission permission="employees.manage">
+              <ImportEmployeesPage />
             </RequirePermission>
           }
         />

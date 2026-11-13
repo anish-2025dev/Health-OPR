@@ -59,6 +59,28 @@ returns the original result instead of booking twice.
 | `GET /attendance/team?month`                                                        | reporting managers                                | Direct reports' monthly summary                                            |
 | `GET /attendance/export?month&branchId`, `GET /attendance/holidays/export?year`     | `attendance.read` / `holidays.read`               | CSV exports                                                                |
 
+## Bulk employee upload
+
+`POST /hr/employees/import` (`employees.manage`). Body: `{ rows: [{ column: value }], dryRun: true|false,
+createMissing: true|false }`. Up to 1000 rows. Columns: Employee ID, Full Name*, Mobile*, Email,
+Branch* (code or name), Department, Designation, Shift, Reports To (employee ID or mobile, may be in the
+same file), Joining Date* (DD-MM-YYYY), Employment Type, Weekly Off, Emergency Contact Name and Phone.
+Headers are matched ignoring case, spaces and underscores. `dryRun` returns per-row errors and saves
+nothing. An import with any error returns 400 and saves nothing. A clean import adds every row in one
+transaction, and sets managers after all rows are added.
+
+## Platform console
+
+Separate login for the operator's team (see [ADR 0011](adr/0011-platform-console-and-invites.md)):
+
+| Area                         | Endpoints                                                                                                                                                                     |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sign-in                      | `POST /platform/auth/login` · `POST /platform/auth/refresh` · `POST /platform/auth/logout`                                                                                    |
+| Account                      | `GET /platform/me` · `POST /platform/me/password`                                                                                                                             |
+| Hospitals                    | `GET/POST /platform/organizations` · `GET /platform/organizations/:id` · `POST /platform/organizations/:id/invites` · `POST /platform/organizations/:id/{suspend,reactivate}` |
+| Audit                        | `GET /platform/audit`                                                                                                                                                         |
+| Invite links (hospital side) | `GET /auth/invite/:token` · `POST /auth/invite/accept`                                                                                                                        |
+
 ## Leave, payroll and statutory
 
 See [`docs/requirements/hr-attendance-leave-payroll.md`](requirements/hr-attendance-leave-payroll.md)

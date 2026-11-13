@@ -37,7 +37,8 @@ It has three parts:
 
 **For HR and staff**
 
-- **Employees:** departments, designations, shifts, week-offs, holidays and reporting managers.
+- **Employees:** departments, designations, shifts, week-offs, holidays and reporting managers;
+  add one by one or upload many from Excel/CSV, with a row-by-row check before anything is saved.
 - **Attendance:** the employee taps **Mark attendance** on their phone. The phone's location must be
   inside the branch radius (default 10 m, set per branch) **and** the employee must enter the SMS code.
   The first mark of the day is the in time and the second is the out time. Late, half-day and overtime
@@ -52,6 +53,9 @@ It has three parts:
 - **Messages:** HR, payroll and managers send payroll, performance, leave or general messages to
   employees, with an unread badge in the employee's app. Employees are told automatically when payslips
   are ready.
+
+**Platform console** (for your own team at `/platform`): onboard hospitals, send owners a one-time
+sign-in link, see usage counts, suspend or reactivate a hospital.
 
 **Each person sees only their own part:** owners and admins see everything. HR sees employees,
 attendance and leave. Payroll sees salaries. Reception sees patients and the queue. Doctors see their

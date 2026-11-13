@@ -43,7 +43,14 @@ export function EmployeesPage() {
         title="Employees"
         description="Employee profiles, reporting lines and shifts."
         actions={
-          canManage && <Button onClick={() => navigate('/employees/new')}>Add employee</Button>
+          canManage && (
+            <div className="flex gap-2">
+              <Button variant="secondary" onClick={() => navigate('/employees/import')}>
+                Upload from Excel
+              </Button>
+              <Button onClick={() => navigate('/employees/new')}>Add employee</Button>
+            </div>
+          )
         }
       />
       <Card>
