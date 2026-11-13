@@ -157,7 +157,7 @@ services:
       # Same-origin API so the patient's HttpOnly sign-in cookie is first-party.
       - type: rewrite
         source: /api/*
-        destination: https://healthos-api.onrender.com/api/*
+        destination: https://healthos-api-gjr1.onrender.com/api/*
       - type: rewrite
         source: /*
         destination: /index.html

@@ -66,7 +66,7 @@ store dumps in the repository or on personal laptops.
 | SMS codes not arriving                           | MSG91 dashboard delivery reports; DLT template status                                                                                                                | Fix the template or sender ID in MSG91                                              |
 | WhatsApp messages get no reply                   | Meta app → Webhooks shows failures? API logs "INVALID_SIGNATURE" means a wrong `WHATSAPP_APP_SECRET`. Is the hospital's Phone number ID saved in **WhatsApp & SMS**? | Correct the setting. Missed messages are retried every minute once processing works |
 | "Mark attendance" fails for everyone at a branch | Branch location and radius (Branches page); indoor GPS accuracy                                                                                                      | Correct the location or raise the radius (for example to 30–50 m)                   |
-| Deploy failed at "pre-deploy"                    | Render deploy logs show the migration error                                                                                                                          | Fix the migration and push again. The previous version is still serving             |
+| Deploy failed during build (migration)           | Render deploy logs show the migration error                                                                                                                          | Fix the migration and push again. The previous version is still serving             |
 
 **Suspected data exposure or security incident:**
 
