@@ -62,7 +62,14 @@ if (exists) {
   process.exit(1);
 }
 
-const password = generateTemporaryPassword();
+// DEMO_PASSWORD (set as a secret, e.g. in the Render dashboard) avoids printing a password in logs.
+const passwordFromEnv = process.env.DEMO_PASSWORD;
+if (passwordFromEnv !== undefined && passwordFromEnv.length < 12) {
+  console.error('DEMO_PASSWORD must be at least 12 characters.');
+  await db.destroy();
+  process.exit(1);
+}
+const password = passwordFromEnv || generateTemporaryPassword();
 const passwordHash = await hashPassword(password);
 const domain = `${slug}.test`;
 const created = await createOrganizationWithOwner(db, {
@@ -374,7 +381,7 @@ try {
   const patientSite = config.PATIENT_SITE_URL.replace(/\/$/, '');
   console.log(`
 Demo hospital created: Sunrise Demo Hospital (hospital code: ${slug})
-Every login below uses this password (shown once):  ${password}
+Every login below uses ${passwordFromEnv ? 'the DEMO_PASSWORD you set' : `this password (shown once):  ${password}`}
 
 PLATFORM CONSOLE (your team)       ${web}/platform
   ${platformEmail}

@@ -369,12 +369,14 @@ Local commands (full guide in `README.md`):
 - Move the API to `starter` with `preDeployCommand` before a clinic depends on it (deployment guide
   explains how).
 
+**Free plan has no Shell.** Use the deploy-time bootstrap (`apps/api/scripts/bootstrap.js`, run in
+the API build) with `BOOTSTRAP_PLATFORM_ADMIN_EMAIL/PASSWORD` and optional
+`DEMO_HOSPITAL_CODE/DEMO_PASSWORD` set in the Render dashboard (deployment guide, "Free plan" section).
+
 Pending owner actions after the latest push:
 
-1. Render → `healthos-api` → Shell:
-   ```bash
-   npm run platform:admin --workspace apps/api -- --email … --name "…"
-   ```
+1. Create the console login: on the free plan set the `BOOTSTRAP_*` variables and redeploy (no Shell);
+   on a paid plan `npm run platform:admin` in the Shell also works.
 2. Render → Blueprints → **Sync**, to create `healthos-patient`.
 3. Set `PATIENT_SITE_URL` (API) and `VITE_PATIENT_SITE_URL` (web) to the patient site URL, then
    redeploy web.

@@ -11,7 +11,9 @@ services:
     region: singapore # keep close to the Neon region (AWS ap-southeast-1, Singapore)
     plan: free # free instances sleep after inactivity and cannot run preDeployCommand
     # Migrations run during the build because free instances do not support preDeployCommand.
-    buildCommand: npm ci && npm run db:migrate
+    # bootstrap creates the first platform-console login and/or a demo hospital from the BOOTSTRAP_* /
+    # DEMO_* variables below (free instances have no Shell). It does nothing when they are empty.
+    buildCommand: npm ci && npm run db:migrate && npm run bootstrap --workspace apps/api
     startCommand: npm run start --workspace apps/api
     healthCheckPath: /api/v1/health
     autoDeployTrigger: checksPass # deploy only after GitHub CI passes
@@ -55,6 +57,17 @@ services:
       # OTP template. Until these are set, employee sign-in and attendance show "SMS not set up".
       - key: SMS_PROVIDER
         value: msg91
+      # First platform-console login (free plan has no Shell). Set once; it must be changed at first
+      # sign-in, after which BOOTSTRAP_PLATFORM_ADMIN_PASSWORD can be deleted.
+      - key: BOOTSTRAP_PLATFORM_ADMIN_EMAIL
+        sync: false
+      - key: BOOTSTRAP_PLATFORM_ADMIN_PASSWORD
+        sync: false
+      # Optional demo hospital with fictional data and a login for every role (created once).
+      - key: DEMO_HOSPITAL_CODE
+        sync: false
+      - key: DEMO_PASSWORD
+        sync: false
       - key: MSG91_AUTH_KEY
         sync: false
       - key: MSG91_OTP_TEMPLATE_ID

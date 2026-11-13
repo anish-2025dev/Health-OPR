@@ -111,6 +111,25 @@ The second must return `{"status":"ok","dependencies":{"postgres":"ok","redis":"
 Then open both websites. The staff app shows a sign-in page. The patient website shows "Sign in with your
 phone number".
 
+## Free plan: no Shell, no commands
+
+Render's free instances have **no Shell** and no one-off jobs, so nothing below needs a terminal. The
+API build runs `apps/api/scripts/bootstrap.js` after the migrations. It reads these variables, which
+you set in **Render → healthos-api → Environment**, then **Manual Deploy → Deploy latest commit**:
+
+| Variable                            | What it does                                                                                                         |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `BOOTSTRAP_PLATFORM_ADMIN_EMAIL`    | Creates your platform-console login (once)                                                                           |
+| `BOOTSTRAP_PLATFORM_ADMIN_PASSWORD` | Its first password, 12+ characters. You must change it at first sign-in; then delete this variable                   |
+| `DEMO_HOSPITAL_CODE`                | Optional: creates a demo hospital with fictional data and a login for every role (once), for example `demo-hospital` |
+| `DEMO_PASSWORD`                     | Password for all demo logins, 12+ characters                                                                         |
+
+Bootstrap never prints passwords and never fails the deploy: problems appear as `[bootstrap] WARNING`
+lines in the build log. Demo logins are `owner@`, `admin@`, `clinic@`, `reception@`, `doctor@`,
+`nurse@`, `hr@`, `payroll@` and `manager@<code>.test`, plus `platform@<code>.test` for the console.
+Employees (mobiles `9000000102`–`106`) and patients (`9000000201`–`204`) sign in with SMS codes, so
+they need MSG91 (Part 5).
+
 ## Part 4: Onboard hospitals (platform console)
 
 **Once:** create your own platform admin account. In Render, open **healthos-api → Shell** and run:
