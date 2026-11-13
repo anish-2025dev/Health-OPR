@@ -46,6 +46,8 @@ import {
 import { MessagingPage } from '@/features/integrations/MessagingPage';
 import { MessagesPage, MyMessagesPage } from '@/features/messages/MessagesPages';
 import { AnalyticsPage } from '@/features/analytics/AnalyticsPage';
+import { InvitePage } from '@/features/auth/InvitePage';
+import { PlatformApp } from '@/platform/PlatformApp';
 import { Spinner } from '@/components/ui';
 import { AppLayout } from './AppLayout';
 
@@ -102,6 +104,8 @@ export function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/employee-login" element={<EmployeeLoginPage />} />
       <Route path="/track/:code" element={<TrackPage />} />
+      <Route path="/invite" element={<InvitePage />} />
+      <Route path="/platform/*" element={<PlatformApp />} />
       <Route
         path="/queue-display/:doctorId"
         element={

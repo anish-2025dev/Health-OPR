@@ -27,6 +27,7 @@ import { payrollRouter, selfPayslipRouter } from '../../modules/hr-payroll/route
 import { statutoryRouter } from '../../modules/hr-statutory/routes.js';
 import { messagesRouter, selfMessagesRouter } from '../../modules/messages/index.js';
 import { analyticsRouter } from '../../modules/analytics/index.js';
+import { platformRouter } from '../../modules/platform/index.js';
 import { patientsRouter } from '../../modules/patients/routes.js';
 import { privacyRouter } from '../../modules/patients/privacy.routes.js';
 import { portalRouter } from '../../modules/patients/portal.routes.js';
@@ -121,6 +122,8 @@ export function apiV1Router({ app, config, checks, db, rateLimitStore, sms, what
     authenticate,
     whatsappSettingsRouter({ db, config, whatsapp: whatsappSender }),
   );
+  // The operator's own console for onboarding hospitals (separate login; see ADR 0011).
+  router.use('/platform', platformRouter({ db, config, rateLimitStore: limiterStore }));
   // Patient's live queue link (token, position and estimate only).
   router.use('/public/track', trackingRouter({ db, rateLimitStore: limiterStore }));
   // Public clinic portal (QR landing page): no staff login; uses its own phone-verified token.

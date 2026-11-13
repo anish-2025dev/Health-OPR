@@ -74,7 +74,10 @@ export function organizationsRouter({ db }) {
  * Creates an organization with a main branch and its first owner. Used by the bootstrap script (and
  * later by the platform admin console). Runs in the system context because the tenant doesn't exist yet.
  */
-export async function createOrganizationWithOwner(db, { name, slug, owner, branch, passwordHash }) {
+export async function createOrganizationWithOwner(
+  db,
+  { name, slug, owner, branch, passwordHash, source = 'bootstrap' },
+) {
   return withSystem(db, async (trx) => {
     const [org] = await trx('organizations').insert({ name, slug }).returning('*');
     const [mainBranch] = await trx('branches')
@@ -86,7 +89,8 @@ export async function createOrganizationWithOwner(db, { name, slug, owner, branc
         email: owner.email,
         full_name: owner.fullName,
         password_hash: passwordHash,
-        must_change_password: true,
+        // With no password yet (invite flow), the owner sets one through the invite link.
+        must_change_password: Boolean(passwordHash),
       })
       .returning('*');
     await trx('user_role_assignments').insert({
@@ -101,7 +105,7 @@ export async function createOrganizationWithOwner(db, { name, slug, owner, branc
       action: 'organization.created',
       entityType: 'organization',
       entityId: org.id,
-      metadata: { ownerUserId: user.id, source: 'bootstrap' },
+      metadata: { ownerUserId: user.id, source },
     });
     return { organization: org, branch: mainBranch, owner: user };
   });

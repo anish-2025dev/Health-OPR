@@ -132,7 +132,20 @@ radius. The demo branch is in central Bengaluru with a 100 m radius. To try it f
 sign in as the owner, open **Branches**, set the branch location to your current position, and
 raise the radius if you're indoors (GPS indoors is often 20–50 m off).
 
-### Starting your own (empty) hospital instead of the demo
+### Onboarding hospitals (platform console)
+
+Your own team manages client hospitals at http://localhost:5173/platform. Create your first platform
+admin once:
+
+```bash
+npm run platform:admin --workspace apps/api -- --email you@yourcompany.com --name "Your Name"
+```
+
+Sign in with the printed password and set your own. **Onboard a hospital** creates it and gives you a
+one-time link to send to the hospital owner; they set their password and are signed in. See
+[ADR 0011](docs/adr/0011-platform-console-and-invites.md).
+
+### Starting your own (empty) hospital from the command line
 
 ```bash
 npm run org:create --workspace apps/api -- --name "My Clinic" --slug my-clinic --owner-email owner@my-clinic.example --owner-name "Owner Name"

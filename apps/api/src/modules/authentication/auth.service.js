@@ -13,6 +13,12 @@ const REFRESH_RACE_GRACE_MS = 10_000;
 
 const invalidCredentials = () =>
   new AppError(401, 'INVALID_CREDENTIALS', 'Email or password is incorrect');
+const invalidInvite = () =>
+  new AppError(
+    400,
+    'INVITE_INVALID',
+    'This link has expired or was already used. Ask for a new link.',
+  );
 const invalidSession = () =>
   new AppError(401, 'INVALID_SESSION', 'Your session has ended. Please sign in again.');
 
@@ -55,9 +61,91 @@ export function createAuthService({ db, config, tokens }) {
     );
   }
 
+  async function findInvite(token) {
+    if (typeof token !== 'string' || token.length < 20 || token.length > 200) throw invalidInvite();
+    // Pre-tenant lookup by token hash, like login.
+    const invite = await withSystem(db, (trx) =>
+      trx('user_invites as i')
+        .join('users as u', 'u.id', 'i.user_id')
+        .join('organizations as o', 'o.id', 'i.organization_id')
+        .where('i.token_hash', hashToken(token))
+        .first(
+          'i.*',
+          'u.email',
+          'u.full_name',
+          'u.status as user_status',
+          'o.name as organization_name',
+          'o.status as organization_status',
+        ),
+    );
+    if (
+      !invite ||
+      invite.used_at ||
+      invite.revoked_at ||
+      new Date(invite.expires_at) <= new Date() ||
+      invite.user_status !== 'active' ||
+      invite.organization_status !== 'active'
+    ) {
+      throw invalidInvite();
+    }
+    return invite;
+  }
+
   return {
     /** Starts a new session family for an already-verified user (used by employee OTP sign-in). */
     startSession: (trx, user, meta) => issueSession(trx, { user, familyId: randomUUID(), meta }),
+
+    /** Who a one-time invite link is for (shown before the person sets a password). */
+    async inviteInfo(token) {
+      const invite = await findInvite(token);
+      return {
+        organizationName: invite.organization_name,
+        email: invite.email,
+        fullName: invite.full_name,
+        expiresAt: invite.expires_at,
+      };
+    },
+
+    /** Sets the password from an invite link, marks the link used and signs the person in. */
+    async acceptInvite({ token, password, meta }) {
+      // Pre-tenant lookup by token hash, like login; the rest runs in the tenant.
+      const invite = await findInvite(token);
+      const passwordHash = await hashPassword(password);
+      return withTenant(db, invite.organization_id, async (trx) => {
+        const used = await trx('user_invites')
+          .where({ organization_id: invite.organization_id, id: invite.id })
+          .whereNull('used_at')
+          .whereNull('revoked_at')
+          .update({ used_at: trx.fn.now() });
+        if (!used) throw invalidInvite();
+        const [user] = await trx('users')
+          .where({ organization_id: invite.organization_id, id: invite.user_id })
+          .update({
+            password_hash: passwordHash,
+            must_change_password: false,
+            failed_login_count: 0,
+            locked_until: null,
+            last_login_at: trx.fn.now(),
+            updated_at: trx.fn.now(),
+          })
+          .returning('*');
+        // Any other sessions end: the password has just been set.
+        await trx('auth_sessions')
+          .where({ organization_id: invite.organization_id, user_id: user.id })
+          .whereNull('revoked_at')
+          .update({ revoked_at: trx.fn.now(), revoke_reason: 'password_set_by_invite' });
+        await recordAudit(trx, {
+          organizationId: invite.organization_id,
+          actorUserId: user.id,
+          action: 'auth.invite_accepted',
+          entityType: 'user',
+          entityId: user.id,
+          ip: meta.ip,
+          requestId: meta.requestId,
+        });
+        return issueSession(trx, { user, familyId: randomUUID(), meta });
+      });
+    },
 
     async login({ email, password, meta }) {
       // System context: the tenant is not known until we find the user.

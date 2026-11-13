@@ -14,7 +14,8 @@
     "db:rollback": "knex --knexfile knexfile.js migrate:rollback",
     "db:make": "knex --knexfile knexfile.js migrate:make",
     "org:create": "node scripts/create-organization.js",
-    "seed:demo": "node scripts/seed-demo.js"
+    "seed:demo": "node scripts/seed-demo.js",
+    "platform:admin": "node scripts/create-platform-admin.js"
   },
   "dependencies": {
     "@node-rs/argon2": "^2.2.2",

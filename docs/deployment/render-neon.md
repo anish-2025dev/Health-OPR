@@ -111,32 +111,39 @@ The second must return `{"status":"ok","dependencies":{"postgres":"ok","redis":"
 Then open both websites. The staff app shows a sign-in page. The patient website shows "Sign in with your
 phone number".
 
-## Part 4: Create the first hospital
+## Part 4: Onboard hospitals (platform console)
 
-In Render, open **healthos-api → Shell** and run (with the hospital's real name and the owner's real
-email):
+**Once:** create your own platform admin account. In Render, open **healthos-api → Shell** and run:
 
 ```bash
-npm run org:create --workspace apps/api -- --name "Sunrise Clinic" --slug sunrise-clinic --owner-email owner@sunriseclinic.in --owner-name "Owner Name"
+npm run platform:admin --workspace apps/api -- --email you@yourcompany.com --name "Your Name"
 ```
 
-- `--slug` is the **hospital code** that patients and employees type. Use lowercase letters, digits and
-  dashes, and keep it short.
-- It prints a **temporary password once**. Send it to the owner privately. They must change it at
-  first sign-in.
+It prints a temporary password once. Sign in at `https://<staff site>/platform` and set your own
+password. Create accounts for teammates the same way.
 
-The owner signs in at the staff app and sets up, in this order:
+**For each new hospital:**
 
-1. **Branches:** address, and the location and radius used for attendance.
-2. **Users & roles:** reception, HR, payroll, doctors and managers.
-3. **Company setup:** departments, designations and shifts.
-4. **Employees:** with their mobile numbers.
-5. **Doctors:** with consultation hours.
-6. **Patient privacy → Privacy notices:** write the notice with a lawyer, then publish it.
-7. **Patient privacy → Clinic QR page:** download and print the QR code for the desk.
-8. Payroll: **Payroll → Setup**, then statutory rules entered and approved with the payroll adviser.
+1. In the platform console, click **Onboard a hospital**. Enter the hospital name, a short **hospital
+   code** (for example `sunrise-clinic`; patients and employees type it, and it is part of the QR
+   link), the owner's name and email, and the first branch name.
+2. The console shows a **one-time sign-in link** (valid 7 days). Send it to the owner by email or with
+   **Share on WhatsApp**.
+3. The owner opens the link, sets a password, and is signed in. The console shows when they have done
+   so. If the link expires or the owner forgets their password, click **New sign-in link**.
+4. The owner sets up the hospital in this order:
+   1. **Branches:** address, and the location and radius used for attendance.
+   2. **Users & roles:** admins, HR, reception, doctors, payroll.
+   3. **Company setup**, then **Employees** (one by one or by Excel/CSV upload).
+   4. **Doctors** with their hours.
+   5. **Patient privacy → Privacy notices:** write with a lawyer, then publish.
+   6. **Patient privacy → Clinic QR page:** print the QR code.
+   7. **Payroll → Setup** and the statutory rules, with the payroll adviser.
 
-Repeat Part 4 for each new hospital. Hospitals never see each other's data.
+To pause a hospital (for example, when a contract is paused), use **Suspend** in the console. Everyone
+there is signed out and nothing is deleted. **Reactivate** restores access.
+
+The `org:create` command still works for scripted or local setups.
 
 ## Part 5: Turn on SMS (MSG91)
 

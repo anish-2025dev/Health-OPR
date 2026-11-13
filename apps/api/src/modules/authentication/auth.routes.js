@@ -154,6 +154,28 @@ export function authRouter({ config, authService, authenticate, rateLimitStore, 
     },
   );
 
+  // ---------------------------------------------------------------- one-time invite links
+  const inviteLimiter = rateLimit({
+    store: rateLimitStore,
+    prefix: 'invite-ip',
+    limit: 30,
+    windowSec: 15 * 60,
+    key: (req) => req.ip ?? 'unknown',
+  });
+  router.get('/invite/:token', inviteLimiter, async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    res.json(await authService.inviteInfo(req.params.token));
+  });
+  router.post('/invite/accept', inviteLimiter, requireCsrfHeader, async (req, res) => {
+    const body = validate(
+      z.object({ token: z.string().min(20).max(200), password: passwordSchema }).strict(),
+      req.body,
+    );
+    const result = await authService.acceptInvite({ ...body, meta: meta(req) });
+    setRefreshCookie(res, result.refreshToken);
+    res.json({ accessToken: result.accessToken, expiresIn: result.expiresIn });
+  });
+
   router.post('/refresh', requireCsrfHeader, async (req, res) => {
     try {
       const result = await authService.refresh({
