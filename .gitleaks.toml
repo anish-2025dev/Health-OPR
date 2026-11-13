@@ -1,0 +1,16 @@
+# gitleaks configuration: the default rules, plus an allow-list for test-only placeholder values.
+# These strings are fixed fixtures used by the automated tests; they are not real credentials.
+# Never add a real key here: remove the leak and rotate the key instead.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Test-only fixture values"
+regexTarget = "match"
+regexes = [
+  '''test-secret-key-that-is-long-enough-123456''',
+  '''test-whatsapp-app-secret''',
+  '''test-verify-token''',
+  # Environment variable NAMES in render.yaml ("- key: SOME_NAME"); values are never stored there.
+  '''key:\s*[A-Z][A-Z0-9_]+''',
+]
