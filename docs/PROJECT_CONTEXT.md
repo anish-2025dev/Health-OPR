@@ -342,13 +342,13 @@ connected as a superuser or BYPASSRLS database role.
 
 Local commands (full guide in `README.md`):
 
-| Step                                                     | Command             |
-| -------------------------------------------------------- | ------------------- |
-| Install and create `.env`                                | `make setup`        |
-| Start PostgreSQL and Redis                               | `make up`           |
-| Create the tables                                        | `make migrate`      |
-| Load a fictional demo hospital (prints logins once)      | `npm run seed:demo` |
-| Run API :4000, staff app :5173 and patient website :5174 | `make dev`          |
+| Step                                                                          | Command                                                             |
+| ----------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| Install and create `.env`                                                     | `make setup`                                                        |
+| Start PostgreSQL and Redis                                                    | `make up`                                                           |
+| Create the tables                                                             | `make migrate`                                                      |
+| Load a fictional demo hospital with a login for every role (prints them once) | `npm run seed:demo`; on a deployed server add `-- --allow-deployed` |
+| Run API :4000, staff app :5173 and patient website :5174                      | `make dev`                                                          |
 
 - In development, SMS and WhatsApp messages (including OTPs) are **printed in the API terminal**.
 - Other commands:

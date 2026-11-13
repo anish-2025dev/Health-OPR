@@ -125,12 +125,13 @@ On Windows, use WSL2 (Ubuntu) and run everything inside it.
 
 7. **Open the apps**
 
-   | Try this               | Where                                          | How                                                                                                               |
-   | ---------------------- | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-   | Admin / reception / HR | http://localhost:5173/login                    | `owner@demo-clinic.test` (or `reception@…`, `hr@…`, `payroll@…`, `doctor@…`, `clinic@…`) and the printed password |
-   | Employee               | http://localhost:5173/employee-login           | Company code `demo-clinic`, mobile `9000000101`. The OTP is shown in the terminal                                 |
-   | Patient                | http://localhost:5174                          | Mobile `9000000201`, OTP from the terminal, hospital code `demo-clinic`                                           |
-   | Live queue link        | Reception → book → **Copy live tracking link** | Open it on any device                                                                                             |
+   | Try this                     | Where                                          | How                                                                                                                                         |
+   | ---------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+   | Platform console (your team) | http://localhost:5173/platform                 | `platform@demo-clinic.test` and the printed password                                                                                        |
+   | Staff                        | http://localhost:5173/login                    | `owner@`, `admin@`, `clinic@`, `reception@`, `doctor@`, `nurse@`, `hr@`, `payroll@` or `manager@demo-clinic.test`, and the printed password |
+   | Employee                     | http://localhost:5173/employee-login           | Company code `demo-clinic`, mobile `9000000102` (Ravi); the OTP is shown in the API terminal                                                |
+   | Patient                      | http://localhost:5174                          | Mobile `9000000201`, OTP from the terminal, hospital code `demo-clinic`                                                                     |
+   | Live queue link              | Reception → book → **Copy live tracking link** | Open it on any device                                                                                                                       |
 
 **Testing "Mark attendance":** the browser asks for your location, and you must be within the branch
 radius. The demo branch is in central Bengaluru with a 100 m radius. To try it from where you are,

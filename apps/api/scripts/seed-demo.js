@@ -5,7 +5,8 @@
  *   npm run seed:demo                 # organization code "demo-clinic"
  *   npm run seed:demo -- --slug other # another demo organization
  *
- * - Development only: refuses to run when APP_ENV is staging or production.
+ * - Development by default. On a deployed server (staging/production) it runs only with
+ *   --allow-deployed, for a pilot demo hospital with fictional data. Never mix it with real data.
  * - Every person, phone number and record is made up. Phone numbers use the +91 90000 00xxx range.
  * - Prints the staff logins with a freshly generated password (nothing is hardcoded).
  * - The privacy notice is placeholder text, clearly marked; it is not legal wording.
@@ -30,7 +31,12 @@ import {
 import { addDays, dayOfWeek } from '../src/modules/hr-attendance/calc.js';
 import { localDate } from '../src/modules/clinic/calc.js';
 
-const { values } = parseArgs({ options: { slug: { type: 'string', default: 'demo-clinic' } } });
+const { values } = parseArgs({
+  options: {
+    slug: { type: 'string', default: 'demo-clinic' },
+    'allow-deployed': { type: 'boolean', default: false },
+  },
+});
 const slug = values.slug;
 if (!/^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$/.test(slug)) {
   console.error('--slug must be lowercase letters, digits and dashes');
@@ -38,8 +44,11 @@ if (!/^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$/.test(slug)) {
 }
 
 const config = loadConfig();
-if (!['development', 'test'].includes(config.APP_ENV)) {
-  console.error('seed:demo only runs with APP_ENV=development. It must never touch real data.');
+const deployed = !['development', 'test'].includes(config.APP_ENV);
+if (deployed && !values['allow-deployed']) {
+  console.error(
+    `APP_ENV is ${config.APP_ENV}. To create a separate DEMO hospital with fictional data on this server, run again with --allow-deployed.`,
+  );
   process.exit(1);
 }
 const db = createDb(config);
@@ -109,11 +118,14 @@ try {
   // ---- staff logins
   const staff = {};
   for (const [key, name, role] of [
+    ['admin', 'Demo Admin', 'organization_admin'],
     ['hr', 'Demo HR Manager', 'hr_manager'],
     ['payroll', 'Demo Payroll Manager', 'payroll_manager'],
     ['reception', 'Demo Receptionist', 'receptionist'],
     ['doctor', 'Dr. Kavya Demo', 'doctor'],
     ['clinic', 'Demo Clinic Manager', 'clinic_manager'],
+    ['nurse', 'Demo Nurse', 'nurse'],
+    ['manager', 'Meena Demo', 'department_manager'],
   ]) {
     const [u] = await withTenant(db, org, (trx) =>
       trx('users')
@@ -174,7 +186,8 @@ try {
         weeklyOffDays: [0],
         joiningDate: addDays(today, -400),
         reportingManagerId: manager ? emp[manager].id : null,
-        userId: name === 'Kavya Demo' ? staff.doctor : null,
+        // Kavya (doctor) and Meena (front-office manager) also have email logins.
+        userId: name === 'Kavya Demo' ? staff.doctor : name === 'Meena Demo' ? staff.manager : null,
       })
     ).id;
     emp[name] = { id: emp[name] };
@@ -343,24 +356,52 @@ try {
     }
   });
 
+  // ---- a platform-console login for the operator's team (not part of any hospital)
+  const platformEmail = `platform@${domain}`;
+  await withSystem(db, async (trx) => {
+    await trx('platform_admins')
+      .insert({
+        email: platformEmail,
+        full_name: 'Demo Platform Admin',
+        password_hash: passwordHash,
+        must_change_password: false,
+      })
+      .onConflict(trx.raw('(lower(email))'))
+      .ignore();
+  });
+
+  const web = config.FRONTEND_URL.replace(/\/$/, '');
+  const patientSite = config.PATIENT_SITE_URL.replace(/\/$/, '');
   console.log(`
 Demo hospital created: Sunrise Demo Hospital (hospital code: ${slug})
+Every login below uses this password (shown once):  ${password}
 
-Staff logins (http://localhost:5173/login), all with password:  ${password}
-  owner@${domain}       Organization owner (everything)
-  hr@${domain}          HR manager
-  payroll@${domain}     Payroll manager
-  reception@${domain}   Receptionist
-  doctor@${domain}      Doctor (Dr. Kavya Demo's own queue)
-  clinic@${domain}      Clinic manager
+PLATFORM CONSOLE (your team)       ${web}/platform
+  ${platformEmail}
 
-Employee sign-in (http://localhost:5173/employee-login): company code "${slug}",
-  mobile 9000000101 … 9000000106. The OTP is printed in the API terminal (SMS_PROVIDER=console).
+STAFF (email + password)           ${web}/login
+  owner@${domain}        Organization owner: everything, approves payroll
+  admin@${domain}        Organization admin: everything
+  clinic@${domain}       Clinic manager: patients, doctors, queue, privacy, analytics
+  reception@${domain}    Receptionist: register patients, book, run the queue
+  doctor@${domain}       Doctor: own queue (Dr. Kavya Demo); also an employee
+  nurse@${domain}        Nurse: queue and patient lookup
+  hr@${domain}           HR manager: employees, attendance, leave, messages
+  payroll@${domain}      Payroll manager: salaries, payroll runs, payslips
+  manager@${domain}      Meena Demo: department manager of Ravi, Sara, Imran, Leela
 
-Patient website (http://localhost:5174): sign in with 9000000201 (Asha + Kabir), 9000000202,
-  9000000203 or 9000000204; the OTP is printed in the API terminal. Hospital code: ${slug}
+EMPLOYEES (company code + mobile + SMS code)   ${web}/employee-login
+  company code: ${slug}
+  9000000102 Ravi · 9000000103 Sara · 9000000104 Imran · 9000000106 Leela
+  (Kavya and Meena use their email logins above)
 
-This password is shown once. Everything here is fictional demo data.
+PATIENTS (mobile + SMS code)        ${patientSite}   hospital code: ${slug}
+  9000000201 Asha + her son Kabir · 9000000202 Rohit · 9000000203 Fatima · 9000000204 Gopal
+
+SMS codes: locally they are printed in the API terminal (SMS_PROVIDER=console).
+On a deployed server they are sent by MSG91, so employee and patient sign-in needs MSG91 set up.
+
+Everything here is fictional demo data.
 `);
 } finally {
   server.close();
