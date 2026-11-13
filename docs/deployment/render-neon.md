@@ -81,9 +81,10 @@ or in git.** You type them into the Render dashboard.
 
 4. Click **Apply**. Render creates four things: `healthos-api`, `healthos-web`, `healthos-patient` and
    `healthos-redis`. On every API deploy it runs:
-   - build: `npm ci && npm run db:migrate` (installs, then creates or updates tables; a failure stops
-     the deploy, and the old version keeps running). On a paid plan you can move the migration to a
-     `preDeployCommand` instead
+   - build: `npm ci`
+   - pre-deploy: `npm run db:migrate && npm run bootstrap --workspace apps/api` (creates or updates
+     tables, then the optional first logins; a failure stops the deploy and the old version keeps
+     running)
    - start: `npm run start --workspace apps/api`
    - health check: `GET /api/v1/health`
 5. **Check the URLs Render actually assigned** (shown on each service). If any differ from the names
@@ -233,16 +234,16 @@ automatically. Then:
 
 ## Plans and cost
 
-| Service                        | Plan in `render.yaml`          | Notes                                                                                                                       |
-| ------------------------------ | ------------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
-| healthos-api                   | `free` (current)               | Sleeps after ~15 minutes idle, so the first request after a pause is slow. Move to `starter` before the clinic relies on it |
-| healthos-web, healthos-patient | static (free)                  | Served from a CDN                                                                                                           |
-| healthos-redis                 | `free`                         | Used for rate limits; no persistence needed                                                                                 |
-| Neon                           | Free tier possible for a pilot | Paid tier for longer restore history and no scale-to-zero                                                                   |
+| Service                        | Plan in `render.yaml`                 | Notes                                                     |
+| ------------------------------ | ------------------------------------- | --------------------------------------------------------- |
+| healthos-api                   | `starter` (current, about US$7/month) | Always on, runs the pre-deploy step                       |
+| healthos-web, healthos-patient | static (free)                         | Served from a CDN                                         |
+| healthos-redis                 | `free`                                | Used for rate limits; no persistence needed               |
+| Neon                           | Free tier possible for a pilot        | Paid tier for longer restore history and no scale-to-zero |
 
-**Moving the API to a paid plan** (recommended for a live clinic, so the reception screen never waits
-for the server to wake up): in `render.yaml` set `plan: starter`, change the API `buildCommand` back to
-`npm ci`, and add `preDeployCommand: npm run db:migrate`.
+**Running on the free plan instead** (demos only: it sleeps after ~15 minutes idle): in `render.yaml`
+set `plan: free`, delete `preDeployCommand`, and use
+`buildCommand: npm ci && npm run db:migrate && npm run bootstrap --workspace apps/api`.
 
 ## Before real patient or employee data
 

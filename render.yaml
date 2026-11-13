@@ -9,11 +9,14 @@ services:
     name: healthos-api
     runtime: node
     region: singapore # keep close to the Neon region (AWS ap-southeast-1, Singapore)
-    plan: free # free instances sleep after inactivity and cannot run preDeployCommand
-    # Migrations run during the build because free instances do not support preDeployCommand.
-    # bootstrap creates the first platform-console login and/or a demo hospital from the BOOTSTRAP_* /
-    # DEMO_* variables below (free instances have no Shell). It does nothing when they are empty.
-    buildCommand: npm ci && npm run db:migrate && npm run bootstrap --workspace apps/api
+    plan: starter # always on; free instances sleep after inactivity and can't run preDeployCommand
+    buildCommand: npm ci
+    # Runs before the new version starts; if it fails, the deploy stops and the old version keeps
+    # serving. bootstrap creates the first platform-console login and/or a demo hospital from the
+    # BOOTSTRAP_* / DEMO_* variables below, and does nothing when they are empty.
+    # On the FREE plan instead: remove preDeployCommand and use
+    #   buildCommand: npm ci && npm run db:migrate && npm run bootstrap --workspace apps/api
+    preDeployCommand: npm run db:migrate && npm run bootstrap --workspace apps/api
     startCommand: npm run start --workspace apps/api
     healthCheckPath: /api/v1/health
     autoDeployTrigger: checksPass # deploy only after GitHub CI passes

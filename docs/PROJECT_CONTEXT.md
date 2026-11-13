@@ -37,7 +37,7 @@ Status: **pilot build**. Synthetic data only, until the legal, payroll and SMS i
 | Repository               | `github.com/anish-2025dev/health-opr` (branch `main`). The original spec mentioned `Negi270804/Hlt-OPR`, which was inaccessible                                                                                                                                      |
 | Product owner            | The user in the build conversations (account owner of the repo)                                                                                                                                                                                                      |
 | Teammate seen in history | **Nikhil Negi**: edited `render.yaml` directly on GitHub (free plan, migrations in build, API URL `healthos-api-gjr1`)                                                                                                                                               |
-| Hosting                  | **Render** (Singapore): `healthos-api` (Node, **free plan**), `healthos-web` (static, staff/employee app), `healthos-patient` (static, patient website), `healthos-redis` (Key Value, free)                                                                          |
+| Hosting                  | **Render** (Singapore): `healthos-api` (Node, **Starter plan**, always on), `healthos-web` (static, staff/employee app), `healthos-patient` (static, patient website), `healthos-redis` (Key Value, free)                                                            |
 | Database                 | **Neon PostgreSQL 17** (Singapore). App role `healthos_app` (NOBYPASSRLS), pooled `DATABASE_URL`, direct `DATABASE_MIGRATION_URL`                                                                                                                                    |
 | Live API URL             | `https://healthos-api-gjr1.onrender.com` (both static sites rewrite `/api/*` to it)                                                                                                                                                                                  |
 | Live web URLs            | Assigned by Render; not recorded in the repo. Check the Render dashboard                                                                                                                                                                                             |
@@ -364,10 +364,9 @@ Local commands (full guide in `README.md`):
 ## 12. Deployment state and the next manual steps
 
 - `render.yaml` defines 3 web services and Redis.
-- The API runs on the **free plan**, so it sleeps when idle; migrations run in the build
-  (`npm ci && npm run db:migrate`).
-- Move the API to `starter` with `preDeployCommand` before a clinic depends on it (deployment guide
-  explains how).
+- The API is on the **Starter plan** (owner decision for the pilot: ~US$7/month, always on).
+  Migrations and the bootstrap run as `preDeployCommand`. The free-plan alternative is documented
+  in the deployment guide.
 
 **Free plan has no Shell.** Use the deploy-time bootstrap (`apps/api/scripts/bootstrap.js`, run in
 the API build) with `BOOTSTRAP_PLATFORM_ADMIN_EMAIL/PASSWORD` and optional
