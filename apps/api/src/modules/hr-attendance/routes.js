@@ -208,7 +208,8 @@ export function selfAttendanceRouter({ db, otp }) {
         nextAction: action,
         workDate,
         today: day ? presentDay(day, emp.branch.timeZone) : null,
-        smsAvailable: otp.smsProvider !== 'none',
+        smsAvailable:
+          otp.smsProvider !== 'none' || otp.demoCodeAllowed(req.auth.organization.slug, emp.mobile),
       };
     });
     res.json(result);
@@ -234,6 +235,7 @@ export function selfAttendanceRouter({ db, otp }) {
           action,
         },
         ip: req.ip ?? null,
+        demo: otp.demoCodeAllowed(req.auth.organization.slug, emp.mobile),
       });
       return { challenge, action, emp, geo };
     });
@@ -267,6 +269,7 @@ export function selfAttendanceRouter({ db, otp }) {
       sentTo: maskMobile(result.emp.mobile),
       action: result.action,
       distanceM: result.geo.distanceM,
+      ...(result.challenge.demoCode ? { demoCode: result.challenge.demoCode } : {}),
     });
   });
 

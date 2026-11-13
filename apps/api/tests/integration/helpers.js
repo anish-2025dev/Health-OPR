@@ -15,7 +15,7 @@ import { createMemoryWhatsApp } from '../../src/integrations/whatsapp/index.js';
 export const PASSWORD = 'correct-horse-battery-staple';
 export const CSRF = { 'X-Requested-With': 'healthos-web' };
 
-export function setupTestApp() {
+export function setupTestApp(overrides = {}) {
   const config = loadConfig({
     APP_ENV: 'test',
     APP_SECRET_KEY: 'test-secret-key-that-is-long-enough-123456',
@@ -24,6 +24,7 @@ export function setupTestApp() {
     WHATSAPP_VERIFY_TOKEN: 'test-verify-token',
     WHATSAPP_APPOINTMENT_TEMPLATE: 'appointment_booked_test',
     PATIENT_SITE_URL: 'https://patients.example.test',
+    ...overrides,
   });
   const db = knex({ client: 'pg', connection: config.DATABASE_URL, pool: { min: 0, max: 5 } });
   const sms = createMemorySms();

@@ -12,6 +12,7 @@ import { recordAudit } from '../audit/index.js';
 import { hashToken, newRefreshToken } from '../authentication/tokens.js';
 import { requireCsrfHeader } from '../authentication/middleware.js';
 import { upsertContact } from '../patients/service.js';
+import { demoCodesEnabled, isDemoNumber } from '../../core/demo.js';
 
 /**
  * Patient accounts (ADR 0009): sign in to the patient website with phone + OTP, stay signed in on the
@@ -149,7 +150,7 @@ export function patientAuthRouter({ db, config, sms, tokens, rateLimitStore }) {
 
   router.post('/otp/request', byIp, requestByPhone, async (req, res) => {
     const { phone } = validate(z.object({ phone: mobileSchema }).strict(), req.body);
-    await withSystem(db, async (trx) => {
+    const demoCode = await withSystem(db, async (trx) => {
       const recent = await trx('patient_account_otps')
         .where({ phone_e164: phone })
         .where('created_at', '>', trx.raw("now() - interval '15 minutes'"))
@@ -185,6 +186,8 @@ export function patientAuthRouter({ db, config, sms, tokens, rateLimitStore }) {
         expires_at: new Date(Date.now() + OTP_TTL_SECONDS * 1000),
         ip: req.ip ?? null,
       });
+      // Demo deployment: the demo hospital's fictional numbers get the code on screen, not by SMS.
+      if (demoCodesEnabled(config) && isDemoNumber(phone)) return code;
       try {
         await sms.sendOtp({ to: phone, code, purpose: 'patient_login' });
       } catch (err) {
@@ -198,7 +201,10 @@ export function patientAuthRouter({ db, config, sms, tokens, rateLimitStore }) {
         throw new AppError(502, 'SMS_SEND_FAILED', 'Could not send the SMS. Please try again.');
       }
     });
-    res.status(202).json({ expiresInSeconds: OTP_TTL_SECONDS });
+    res.status(202).json({
+      expiresInSeconds: OTP_TTL_SECONDS,
+      ...(typeof demoCode === 'string' ? { demoCode } : {}),
+    });
   });
 
   router.post('/otp/verify', byIp, verifyByPhone, async (req, res) => {
@@ -299,7 +305,7 @@ export function patientAuthRouter({ db, config, sms, tokens, rateLimitStore }) {
 }
 
 /** /patient: the signed-in account and the hospitals it has joined. */
-export function patientAccountRouter({ db, authenticate }) {
+export function patientAccountRouter({ db, config, authenticate }) {
   const router = Router();
   router.use(authenticate);
 
@@ -339,6 +345,18 @@ export function patientAccountRouter({ db, authenticate }) {
     );
     if (!org)
       throw notFound('No hospital found with this code. Check the code with the reception.');
+    // Demo numbers sign in without SMS, so they may only join the demo hospital.
+    if (
+      demoCodesEnabled(config) &&
+      isDemoNumber(req.patient.phone) &&
+      org.slug !== config.DEMO_HOSPITAL_CODE
+    ) {
+      throw new AppError(
+        403,
+        'DEMO_NUMBER',
+        'Demo numbers can only be used with the demo hospital.',
+      );
+    }
     const contact = await withTenant(db, org.id, async (trx) => {
       const c = await upsertContact(trx, org.id, req.patient.phone, { verified: true });
       await recordAudit(trx, {

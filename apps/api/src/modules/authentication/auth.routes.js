@@ -133,11 +133,13 @@ export function authRouter({ config, authService, authenticate, rateLimitStore, 
     otpRequestLimiterByMobile,
     async (req, res) => {
       const body = validate(employeeOtpRequestSchema, req.body);
-      await employeeLogin.requestOtp({ ...body, ip: req.ip ?? null });
+      const r = await employeeLogin.requestOtp({ ...body, ip: req.ip ?? null });
       res.status(202).json({
-        message:
-          'If this mobile number is registered with this company, a 6-digit code has been sent by SMS.',
+        message: r.demoCode
+          ? 'Demo hospital: the code is shown below instead of being sent by SMS.'
+          : 'If this mobile number is registered with this company, a 6-digit code has been sent by SMS.',
         expiresInSeconds: 300,
+        ...(r.demoCode ? { demoCode: r.demoCode } : {}),
       });
     },
   );

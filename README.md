@@ -265,6 +265,12 @@ The ones you'll most likely touch:
 
 ## Deploying
 
+There are two deployments from the same code:
+
+- **Demo** (free, fictional data, logins in [DEMO.md](DEMO.md)): branch `demo`, guide
+  [docs/deployment/demo-setup.md](docs/deployment/demo-setup.md).
+- **Pilot** (real hospitals, Render Starter): branch `main`, guide below.
+
 The project deploys to **Render** (API, both websites, Redis) with **Neon** for PostgreSQL. Everything
 Render needs is in [`render.yaml`](render.yaml). The full step-by-step guide, including SMS and WhatsApp
 setup, is in **[docs/deployment/render-neon.md](docs/deployment/render-neon.md)**. Day-to-day

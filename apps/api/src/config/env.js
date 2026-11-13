@@ -69,6 +69,13 @@ const schema = z
       .string()
       .regex(/^[A-Za-z0-9_]{1,30},[A-Za-z0-9_]{1,30}$/)
       .default('org,link'),
+    // DEMO DEPLOYMENT ONLY: show sign-in codes on screen for the demo hospital's fictional numbers
+    // (+91 90000 00xxx) instead of sending SMS. Never enable for a pilot or production hospital.
+    SMS_DEMO_CODES: z
+      .enum(['true', 'false', ''])
+      .default('')
+      .transform((v) => v === 'true'),
+    DEMO_HOSPITAL_CODE: z.string().trim().toLowerCase().default(''),
     // WhatsApp Business Platform (Meta Cloud API). 'console' prints messages in development.
     // Each hospital's WhatsApp phone number ID is registered in the app (Settings → WhatsApp).
     WHATSAPP_PROVIDER: z.enum(['meta', 'console', '']).default(''),

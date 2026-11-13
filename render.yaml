@@ -1,5 +1,6 @@
 # Render Blueprint: https://render.com/docs/blueprint-spec
-# Creates the API, the staff/employee web app, the patient website and a private Redis-compatible Key Value instance.
+# PILOT deployment (branch main). Creates the API, the staff/employee web app, the patient website
+# and a private Redis-compatible Key Value instance.
 # PostgreSQL is hosted on Neon (not Render). Paste Neon's connection strings when Render prompts for
 # the `sync: false` variables. Never commit real values to this file.
 
@@ -9,14 +10,12 @@ services:
     name: healthos-api
     runtime: node
     region: singapore # keep close to the Neon region (AWS ap-southeast-1, Singapore)
-    plan: starter # always on; free instances sleep after inactivity and can't run preDeployCommand
-    buildCommand: npm ci
-    # Runs before the new version starts; if it fails, the deploy stops and the old version keeps
-    # serving. bootstrap creates the first platform-console login and/or a demo hospital from the
-    # BOOTSTRAP_* / DEMO_* variables below, and does nothing when they are empty.
-    # On the FREE plan instead: remove preDeployCommand and use
-    #   buildCommand: npm ci && npm run db:migrate && npm run bootstrap --workspace apps/api
-    preDeployCommand: npm run db:migrate && npm run bootstrap --workspace apps/api
+    # PILOT (branch main): always on, ~US$7/month. The free DEMO deployment lives on the `demo`
+    # branch with its own services and database (see docs/deployment/demo-setup.md).
+    plan: starter
+    # Works on both plans: install, update the database, then the optional first logins / demo hospital
+    # from the BOOTSTRAP_* variables below (does nothing when they are empty).
+    buildCommand: npm ci && npm run db:migrate && npm run bootstrap --workspace apps/api
     startCommand: npm run start --workspace apps/api
     healthCheckPath: /api/v1/health
     autoDeployTrigger: checksPass # deploy only after GitHub CI passes
@@ -65,11 +64,6 @@ services:
       - key: BOOTSTRAP_PLATFORM_ADMIN_EMAIL
         sync: false
       - key: BOOTSTRAP_PLATFORM_ADMIN_PASSWORD
-        sync: false
-      # Optional demo hospital with fictional data and a login for every role (created once).
-      - key: DEMO_HOSPITAL_CODE
-        sync: false
-      - key: DEMO_PASSWORD
         sync: false
       - key: MSG91_AUTH_KEY
         sync: false

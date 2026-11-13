@@ -1,4 +1,8 @@
-# Deploying HealthOS (Render + Neon)
+# Deploying the PILOT (Render Starter + Neon), branch `main`
+
+> This guide is for the **pilot / real hospitals** (branch `main`, Render Starter plan, real SMS).
+> For the free **demo** with fictional data, use [demo-setup.md](demo-setup.md) instead. The two
+> deployments have separate services and separate databases.
 
 This guide takes you from nothing to a running system that hospitals can use. Follow the parts in
 order. Parts 1–4 are required. Parts 5–6 (SMS and WhatsApp) can be done later; until then, those
@@ -81,10 +85,9 @@ or in git.** You type them into the Render dashboard.
 
 4. Click **Apply**. Render creates four things: `healthos-api`, `healthos-web`, `healthos-patient` and
    `healthos-redis`. On every API deploy it runs:
-   - build: `npm ci`
-   - pre-deploy: `npm run db:migrate && npm run bootstrap --workspace apps/api` (creates or updates
-     tables, then the optional first logins; a failure stops the deploy and the old version keeps
-     running)
+   - build: `npm ci && npm run db:migrate && npm run bootstrap --workspace apps/api` (installs,
+     creates or updates tables, then the optional first logins / demo hospital; a failure stops the
+     deploy and the old version keeps running)
    - start: `npm run start --workspace apps/api`
    - health check: `GET /api/v1/health`
 5. **Check the URLs Render actually assigned** (shown on each service). If any differ from the names
@@ -241,9 +244,8 @@ automatically. Then:
 | healthos-redis                 | `free`                                | Used for rate limits; no persistence needed               |
 | Neon                           | Free tier possible for a pilot        | Paid tier for longer restore history and no scale-to-zero |
 
-**Running on the free plan instead** (demos only: it sleeps after ~15 minutes idle): in `render.yaml`
-set `plan: free`, delete `preDeployCommand`, and use
-`buildCommand: npm ci && npm run db:migrate && npm run bootstrap --workspace apps/api`.
+**From demo to pilot:** in `render.yaml` change `plan: free` to `plan: starter` for `healthos-api`,
+push, then **Blueprints → Sync**. Nothing else changes; the database and all settings stay.
 
 ## Before real patient or employee data
 

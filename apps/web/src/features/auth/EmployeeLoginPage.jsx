@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router';
 import { Alert, Button, Field, Input } from '@/components/ui';
 import { useAuth } from './auth-context';
+import { DemoCode } from '@/components/DemoCode';
 
 const COMPANY_KEY = 'healthos.companyCode';
 
@@ -31,6 +32,7 @@ export function EmployeeLoginPage() {
   const [step, setStep] = useState('mobile');
   const [error, setError] = useState(null);
   const [info, setInfo] = useState(null);
+  const [demoCode, setDemoCode] = useState(null);
   const [busy, setBusy] = useState(false);
 
   if (auth.status === 'authenticated') return <Navigate to="/" replace />;
@@ -43,6 +45,7 @@ export function EmployeeLoginPage() {
       const res = await auth.requestEmployeeOtp(company.trim().toLowerCase(), mobile);
       saveCompany(company.trim().toLowerCase());
       setInfo(res.message);
+      setDemoCode(res.demoCode ?? null);
       setStep('code');
     } catch (err) {
       setError(err.message);
@@ -110,6 +113,7 @@ export function EmployeeLoginPage() {
           ) : (
             <form onSubmit={verify} className="space-y-4" noValidate>
               {info && <Alert tone="green">{info}</Alert>}
+              <DemoCode code={demoCode} />
               <Field label="6-digit code" htmlFor="code">
                 <Input
                   id="code"

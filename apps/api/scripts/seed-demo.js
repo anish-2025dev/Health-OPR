@@ -84,12 +84,13 @@ await withSystem(db, (trx) =>
   trx('users').where({ id: created.owner.id }).update({ must_change_password: false }),
 );
 
-// ---- run the API in-process
+// ---- run the API in-process (SMS is captured in memory, never sent)
+const memorySms = createMemorySms();
 const app = createApp({
   config,
   logger: createLogger({ ...config, LOG_LEVEL: 'silent' }),
   db,
-  sms: createMemorySms(),
+  sms: memorySms,
   whatsapp: createMemoryWhatsApp(),
   rateLimitStore: createMemoryStore(),
   checks: {},
@@ -126,13 +127,20 @@ try {
   const staff = {};
   for (const [key, name, role] of [
     ['admin', 'Demo Admin', 'organization_admin'],
-    ['hr', 'Demo HR Manager', 'hr_manager'],
-    ['payroll', 'Demo Payroll Manager', 'payroll_manager'],
-    ['reception', 'Demo Receptionist', 'receptionist'],
-    ['doctor', 'Dr. Kavya Demo', 'doctor'],
     ['clinic', 'Demo Clinic Manager', 'clinic_manager'],
-    ['nurse', 'Demo Nurse', 'nurse'],
+    ['clinic2', 'Demo Clinic Manager Two', 'clinic_manager'],
+    ['reception', 'Demo Receptionist', 'receptionist'],
+    ['reception2', 'Demo Receptionist Two', 'receptionist'],
+    ['doctor', 'Dr. Kavya Demo', 'doctor'],
+    ['doctor2', 'Dr. Arjun Demo', 'doctor'],
+    ['nurse', 'Nisha Demo', 'nurse'],
+    ['nurse2', 'Pooja Demo', 'nurse'],
+    ['hr', 'Demo HR Manager', 'hr_manager'],
+    ['hr2', 'Demo HR Manager Two', 'hr_manager'],
+    ['payroll', 'Demo Payroll Manager', 'payroll_manager'],
+    ['payroll2', 'Demo Payroll Manager Two', 'payroll_manager'],
     ['manager', 'Meena Demo', 'department_manager'],
+    ['manager2', 'Vikram Demo', 'department_manager'],
   ]) {
     const [u] = await withTenant(db, org, (trx) =>
       trx('users')
@@ -172,16 +180,24 @@ try {
   await call('POST', '/holidays', { date: addDays(today, 10), name: 'Demo festival holiday' });
 
   // ---- employees (fictional; mobiles in the +91 90000 00xxx range)
+  // [name, mobile, designation, department, reports to, staff login key or null]
   const people = [
-    ['Meena Demo', '9000000101', 'Manager', 'Front Office', null],
-    ['Ravi Demo', '9000000102', 'Staff Nurse', 'Nursing', 'Meena Demo'],
-    ['Sara Demo', '9000000103', 'Staff Nurse', 'Nursing', 'Meena Demo'],
-    ['Imran Demo', '9000000104', 'Receptionist', 'Front Office', 'Meena Demo'],
-    ['Kavya Demo', '9000000105', 'Doctor', 'Clinical', null],
-    ['Leela Demo', '9000000106', 'Receptionist', 'Front Office', 'Meena Demo'],
+    ['Meena Demo', '9000000101', 'Manager', 'Front Office', null, 'manager'],
+    ['Vikram Demo', '9000000109', 'Manager', 'Nursing', null, 'manager2'],
+    ['Kavya Demo', '9000000105', 'Doctor', 'Clinical', null, 'doctor'],
+    ['Arjun Demo', '9000000112', 'Doctor', 'Clinical', null, 'doctor2'],
+    ['Nisha Demo', '9000000110', 'Staff Nurse', 'Nursing', 'Vikram Demo', 'nurse'],
+    ['Pooja Demo', '9000000111', 'Staff Nurse', 'Nursing', 'Vikram Demo', 'nurse2'],
+    // Employees who sign in with company code + mobile + code:
+    ['Ravi Demo', '9000000102', 'Staff Nurse', 'Nursing', 'Vikram Demo', null],
+    ['Sara Demo', '9000000103', 'Staff Nurse', 'Nursing', 'Vikram Demo', null],
+    ['Divya Demo', '9000000108', 'Staff Nurse', 'Nursing', 'Vikram Demo', null],
+    ['Imran Demo', '9000000104', 'Receptionist', 'Front Office', 'Meena Demo', null],
+    ['Leela Demo', '9000000106', 'Receptionist', 'Front Office', 'Meena Demo', null],
+    ['Kiran Demo', '9000000107', 'Receptionist', 'Front Office', 'Meena Demo', null],
   ];
   const emp = {};
-  for (const [name, mobile, d, dp, manager] of people) {
+  for (const [name, mobile, d, dp, manager, login] of people) {
     emp[name] = (
       await call('POST', '/hr/employees', {
         fullName: name,
@@ -193,8 +209,8 @@ try {
         weeklyOffDays: [0],
         joiningDate: addDays(today, -400),
         reportingManagerId: manager ? emp[manager].id : null,
-        // Kavya (doctor) and Meena (front-office manager) also have email logins.
-        userId: name === 'Kavya Demo' ? staff.doctor : name === 'Meena Demo' ? staff.manager : null,
+        // Doctors, nurses and managers also have email logins.
+        userId: login ? staff[login] : null,
       })
     ).id;
     emp[name] = { id: emp[name] };
@@ -244,6 +260,7 @@ try {
     displayName: 'Dr. Arjun Demo',
     specialization: 'Paediatrics',
     branchId,
+    userId: staff.doctor2,
     consultationMinutes: 12,
   });
   const week = [1, 2, 3, 4, 5, 6];
@@ -293,6 +310,23 @@ try {
   await register('Rohit Demo', '1979-01-23', '9000000202', 'self', 'male');
   await register('Fatima Demo', '1995-07-30', '9000000203', 'self', 'female');
   await register('Gopal Demo', '1950-11-05', '9000000204', 'self', 'male');
+  await register('Lata Demo', '1960-02-14', '9000000201', 'parent', 'female');
+  await register('Priya Demo', '1983-06-21', '9000000202', 'spouse', 'female');
+  await register('Neha Demo', '1993-08-19', '9000000205', 'self', 'female');
+  await register('Arun Demo', '1971-12-02', '9000000206', 'self', 'male');
+  // Lata was added "online" by her daughter: she waits for the hospital's check (Patient privacy).
+  await withTenant(db, org, (trx) =>
+    trx('contact_patient_links')
+      .where({ organization_id: org, patient_id: patients['Lata Demo'] })
+      .update({
+        authorization_status: 'pending',
+        authorized_at: null,
+        authorized_by_user_id: null,
+        created_via: 'portal',
+      }),
+  );
+  // A look-alike registration for the duplicate review list (never merged automatically).
+  await register('Aasha Demo', '1988-04-12', '9000000209', 'self', 'female');
 
   // ---- today's bookings (future slots only)
   const book = async (patient, doctor) => {
@@ -363,18 +397,190 @@ try {
     }
   });
 
+  // ---- last month: full attendance, salaries and an APPROVED payroll run
+  const [ty, tm] = today.split('-').map(Number);
+  const prev = tm === 1 ? `${ty - 1}-12` : `${ty}-${String(tm - 1).padStart(2, '0')}`;
+  const prevDays = new Date(
+    Date.UTC(Number(prev.slice(0, 4)), Number(prev.slice(5, 7)), 0),
+  ).getUTCDate();
+  const monthPattern = [
+    ['09:02', '18:10'],
+    ['09:24', '18:30'],
+    ['09:05', '18:20'],
+    ['08:58', '19:40'],
+    ['09:41', '18:05'],
+    ['08:55', '18:00'],
+    ['09:00', '13:30'],
+  ];
+  let m = 0;
+  for (const [name] of people) {
+    for (let d = 1; d <= prevDays; d++) {
+      const date = `${prev}-${String(d).padStart(2, '0')}`;
+      if (dayOfWeek(date) === 0) continue;
+      if ((d * 7 + m) % 23 === 0) {
+        m++;
+        continue; // an occasional absence
+      }
+      const [checkIn, checkOut] = monthPattern[(m++ + d) % monthPattern.length];
+      await call('PUT', `/attendance/employees/${emp[name].id}/days/${date}`, {
+        checkIn,
+        checkOut,
+        reason: 'Demo data',
+      });
+    }
+  }
+  await call('PUT', '/attendance/policy', {
+    fullDayMinutes: 480,
+    halfDayMinutes: 240,
+    belowHalfDayStatus: 'absent',
+    lateGraceMinutes: 10,
+    lateFreePerMonth: 2,
+    latePenaltyMode: 'half_day_per_n',
+    latePenaltyEveryN: 3,
+    overtimeAfterMinutes: 540,
+    minPunchGapSeconds: 60,
+  });
+  const basic = await call('POST', '/payroll/components', {
+    name: 'Basic',
+    code: 'BASIC',
+    kind: 'earning',
+    displayOrder: 1,
+  });
+  await call('POST', '/payroll/components', {
+    name: 'House rent allowance',
+    code: 'HRA',
+    kind: 'earning',
+    calc: 'percent_of_component',
+    percent: '40',
+    baseComponentId: basic.id,
+    displayOrder: 2,
+  });
+  const conveyance = await call('POST', '/payroll/components', {
+    name: 'Conveyance',
+    code: 'CONV',
+    kind: 'earning',
+    displayOrder: 3,
+  });
+  const basicPay = {
+    'Kavya Demo': '60000',
+    'Arjun Demo': '55000',
+    'Meena Demo': '32000',
+    'Vikram Demo': '34000',
+  };
+  for (const [name, , designation] of people) {
+    await call('POST', '/payroll/structures', {
+      employeeId: emp[name].id,
+      effectiveFrom: addDays(today, -400),
+      lines: [
+        {
+          componentId: basic.id,
+          amount: basicPay[name] ?? (designation === 'Staff Nurse' ? '21000' : '16000'),
+        },
+        { componentId: conveyance.id, amount: '1600' },
+      ],
+    });
+  }
+  await call('POST', '/payroll/policies', {
+    name: 'Staff canteen',
+    code: 'CANTEEN',
+    kind: 'deduction',
+    calc: 'fixed',
+    amount: '300',
+    effectiveFrom: addDays(today, -400),
+  });
+  await call('POST', '/payroll/policies', {
+    name: 'Overtime pay',
+    code: 'OT',
+    kind: 'earning',
+    calc: 'per_unit',
+    unitMetric: 'overtime_hours',
+    unitRate: 'hourly_rate',
+    multiplier: '1.5',
+    effectiveFrom: addDays(today, -400),
+  });
+  const run = await call('POST', '/payroll/runs', { month: prev });
+  await call('POST', `/payroll/runs/${run.id}/calculate`);
+  await call('POST', `/payroll/runs/${run.id}/approve`, { confirm: true });
+
+  // ---- leave requests (employees sign in with their code; Vikram approves one)
+  const employeeToken = async (mobile) => {
+    const r = await call('POST', '/auth/employee/request-otp', { company: slug, mobile });
+    const code = r.demoCode ?? memorySms.lastCodeFor(`+91${mobile}`);
+    return (await call('POST', '/auth/employee/verify-otp', { company: slug, mobile, code }))
+      .accessToken;
+  };
+  const asUser = async (t, fn) => {
+    const saved = token;
+    token = t;
+    try {
+      return await fn();
+    } finally {
+      token = saved;
+    }
+  };
+  const types = (await call('GET', '/leave/types')).data;
+  const cl = types.find((t) => t.code === 'CL');
+  const sl = types.find((t) => t.code === 'SL');
+  const ravi = await employeeToken('9000000102');
+  const leave = await asUser(ravi, () =>
+    call('POST', '/me/leave/requests', {
+      leaveTypeId: cl.id,
+      startDate: addDays(today, 7),
+      endDate: addDays(today, 8),
+      reason: 'Family function',
+    }),
+  );
+  const sara = await employeeToken('9000000103');
+  await asUser(sara, () =>
+    call('POST', '/me/leave/requests', {
+      leaveTypeId: sl.id,
+      startDate: addDays(today, 2),
+      endDate: addDays(today, 2),
+      reason: 'Doctor appointment',
+    }),
+  );
+  const vikram = (await call('POST', '/auth/login', { email: `manager2@${domain}`, password }))
+    .accessToken;
+  await asUser(vikram, () => call('POST', `/leave/requests/${leave.id}/approve`, {}));
+
+  // ---- messages
+  const hrToken = (await call('POST', '/auth/login', { email: `hr@${domain}`, password }))
+    .accessToken;
+  await asUser(hrToken, () =>
+    call('POST', '/messages', {
+      category: 'general',
+      title: 'Health check-up camp on Saturday',
+      body: 'Free health check-up for all staff this Saturday, 10 am to 1 pm, in the OPD.',
+      audience: { type: 'all' },
+    }),
+  );
+  await asUser(vikram, () =>
+    call('POST', '/messages', {
+      category: 'performance',
+      title: 'Thank you for covering the evening shift',
+      body: 'Great teamwork this week. Thank you, Ravi.',
+      audience: { type: 'employees', employeeIds: [emp['Ravi Demo'].id] },
+    }),
+  );
+
   // ---- a platform-console login for the operator's team (not part of any hospital)
   const platformEmail = `platform@${domain}`;
+  const platformEmail2 = `platform2@${domain}`;
   await withSystem(db, async (trx) => {
-    await trx('platform_admins')
-      .insert({
-        email: platformEmail,
-        full_name: 'Demo Platform Admin',
-        password_hash: passwordHash,
-        must_change_password: false,
-      })
-      .onConflict(trx.raw('(lower(email))'))
-      .ignore();
+    for (const [email, name] of [
+      [platformEmail, 'Demo Platform Admin'],
+      [platformEmail2, 'Demo Platform Admin Two'],
+    ]) {
+      await trx('platform_admins')
+        .insert({
+          email,
+          full_name: name,
+          password_hash: passwordHash,
+          must_change_password: false,
+        })
+        .onConflict(trx.raw('(lower(email))'))
+        .ignore();
+    }
   });
 
   const web = config.FRONTEND_URL.replace(/\/$/, '');
@@ -383,31 +589,29 @@ try {
 Demo hospital created: Sunrise Demo Hospital (hospital code: ${slug})
 Every login below uses ${passwordFromEnv ? 'the DEMO_PASSWORD you set' : `this password (shown once):  ${password}`}
 
-PLATFORM CONSOLE (your team)       ${web}/platform
-  ${platformEmail}
+PLATFORM CONSOLE (your team)   ${web}/platform
+  ${platformEmail}   ${platformEmail2}
 
-STAFF (email + password)           ${web}/login
-  owner@${domain}        Organization owner: everything, approves payroll
-  admin@${domain}        Organization admin: everything
-  clinic@${domain}       Clinic manager: patients, doctors, queue, privacy, analytics
-  reception@${domain}    Receptionist: register patients, book, run the queue
-  doctor@${domain}       Doctor: own queue (Dr. Kavya Demo); also an employee
-  nurse@${domain}        Nurse: queue and patient lookup
-  hr@${domain}           HR manager: employees, attendance, leave, messages
-  payroll@${domain}      Payroll manager: salaries, payroll runs, payslips
-  manager@${domain}      Meena Demo: department manager of Ravi, Sara, Imran, Leela
+STAFF (email + password)       ${web}/login
+  Owner / admin        owner@${domain}  admin@${domain}
+  Clinic managers      clinic@${domain}  clinic2@${domain}
+  Receptionists        reception@${domain}  reception2@${domain}
+  Doctors              doctor@${domain} (Dr. Kavya)  doctor2@${domain} (Dr. Arjun)
+  Nurses               nurse@${domain} (Nisha)  nurse2@${domain} (Pooja)
+  HR managers          hr@${domain}  hr2@${domain}
+  Payroll managers     payroll@${domain}  payroll2@${domain}
+  Department managers  manager@${domain} (Meena: Imran, Leela, Kiran)
+                       manager2@${domain} (Vikram: Ravi, Sara, Divya, Nisha, Pooja)
 
-EMPLOYEES (company code + mobile + SMS code)   ${web}/employee-login
-  company code: ${slug}
-  9000000102 Ravi · 9000000103 Sara · 9000000104 Imran · 9000000106 Leela
-  (Kavya and Meena use their email logins above)
+EMPLOYEES (company code + mobile + code)   ${web}/employee-login   company code: ${slug}
+  9000000102 Ravi · 9000000103 Sara · 9000000108 Divya · 9000000104 Imran · 9000000106 Leela · 9000000107 Kiran
 
-PATIENTS (mobile + SMS code)        ${patientSite}   hospital code: ${slug}
-  9000000201 Asha + her son Kabir · 9000000202 Rohit · 9000000203 Fatima · 9000000204 Gopal
+PATIENTS (mobile + code)       ${patientSite}   hospital code: ${slug}
+  9000000201 Asha, her son Kabir, her mother Lata (awaiting hospital check)
+  9000000202 Rohit and his wife Priya · 9000000203 Fatima · 9000000204 Gopal · 9000000205 Neha · 9000000206 Arun
 
-SMS codes: locally they are printed in the API terminal (SMS_PROVIDER=console).
-On a deployed server they are sent by MSG91, so employee and patient sign-in needs MSG91 set up.
-
+SIGN-IN CODES: locally printed in the API terminal; on the demo deployment (SMS_DEMO_CODES=true)
+shown on screen for these demo numbers; otherwise sent by MSG91.
 Everything here is fictional demo data.
 `);
 } finally {

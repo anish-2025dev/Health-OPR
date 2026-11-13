@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '@/lib/api-client';
 import { Alert, Button, Card, Field, Input, Spinner } from '@/components/ui';
+import { DemoCode } from '@/components/DemoCode';
 import { StatusBadge } from './MonthView';
 
 /** Reads the phone's location in high-accuracy mode. */
@@ -156,6 +157,7 @@ export function MarkAttendanceCard() {
             {done.punchType === 'in' ? done.day.checkIn : done.day.checkOut}.
           </Alert>
         )}
+        {step === 'otp' && challenge && <DemoCode code={challenge.demoCode} />}
         {step === 'otp' && challenge && (
           <form
             className="space-y-3 rounded-lg border border-brand-600/30 bg-brand-50 p-4"

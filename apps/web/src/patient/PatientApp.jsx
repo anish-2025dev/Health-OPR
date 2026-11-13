@@ -21,6 +21,7 @@ import {
 } from '@/features/patients/format';
 import { QUEUE_STATUS, timeOf, todayIst } from '@/features/clinic/format';
 import { TrackPage } from '@/features/clinic/QueuePages';
+import { DemoCode } from '@/components/DemoCode';
 import {
   patientFetch,
   refreshPatientSession,
@@ -96,6 +97,7 @@ function SignIn({ title = 'Sign in with your phone number' }) {
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
   const [sent, setSent] = useState(false);
+  const [demoCode, setDemoCode] = useState(null);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
   const submit = async (e) => {
@@ -104,11 +106,12 @@ function SignIn({ title = 'Sign in with your phone number' }) {
     setError(null);
     try {
       if (!sent) {
-        await patientFetch('/patient-auth/otp/request', {
+        const r = await patientFetch('/patient-auth/otp/request', {
           method: 'POST',
           body: { phone },
           auth: false,
         });
+        setDemoCode(r?.demoCode ?? null);
         setSent(true);
       } else {
         await auth.signIn(phone, code.trim());
@@ -137,6 +140,7 @@ function SignIn({ title = 'Sign in with your phone number' }) {
             onChange={(e) => setPhone(e.target.value)}
           />
         </Field>
+        {sent && <DemoCode code={demoCode} />}
         {sent && (
           <Field label="6-digit code" htmlFor="scode">
             <Input

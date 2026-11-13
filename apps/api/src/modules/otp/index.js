@@ -2,6 +2,7 @@ import { createHmac, randomInt, randomUUID, timingSafeEqual } from 'node:crypto'
 import { AppError } from '../../core/errors.js';
 import { withTenant } from '../../core/db.js';
 import { SmsNotConfiguredError } from '../../integrations/sms/index.js';
+import { demoCodeAllowed } from '../../core/demo.js';
 
 export const OTP_TTL_SECONDS = 300;
 export const OTP_MAX_ATTEMPTS = 5;
@@ -25,9 +26,14 @@ export function createOtpService({ db, config, sms }) {
 
   return {
     smsProvider: sms.provider,
+    /** Demo deployment: codes for the demo hospital's fictional numbers are shown, not sent. */
+    demoCodeAllowed: (organizationSlug, phone) => demoCodeAllowed(config, organizationSlug, phone),
 
     /** Creates a challenge and sends the code. Must run inside the tenant transaction `trx`. */
-    async issue(trx, { organizationId, employeeId, purpose, mobile, metadata = {}, ip = null }) {
+    async issue(
+      trx,
+      { organizationId, employeeId, purpose, mobile, metadata = {}, ip = null, demo = false },
+    ) {
       const recent = await trx('otp_challenges')
         .where({ organization_id: organizationId, employee_id: employeeId, purpose })
         .where('created_at', '>', trx.raw(`now() - interval '${WINDOW_MINUTES} minutes'`))
@@ -70,6 +76,9 @@ export function createOtpService({ db, config, sms }) {
         ip,
       });
 
+      if (demo) {
+        return { challengeId: id, expiresInSeconds: OTP_TTL_SECONDS, demoCode: code };
+      }
       try {
         await sms.sendOtp({ to: mobile, code, purpose });
       } catch (err) {

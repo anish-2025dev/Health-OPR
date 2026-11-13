@@ -14,7 +14,7 @@ const SIGN_IN_STATUSES = ['active', 'on_notice'];
 export function createEmployeeLogin({ db, otp, authService }) {
   async function findEmployee(company, mobile) {
     const org = await withSystem(db, (trx) =>
-      trx('organizations').where({ slug: company, status: 'active' }).first('id', 'name'),
+      trx('organizations').where({ slug: company, status: 'active' }).first('id', 'name', 'slug'),
     );
     if (!org) return null;
     const employee = await withTenant(db, org.id, (trx) =>
@@ -30,16 +30,18 @@ export function createEmployeeLogin({ db, otp, authService }) {
     /** Always resolves the same way whether or not the number is registered (no enumeration). */
     async requestOtp({ company, mobile, ip }) {
       const found = await findEmployee(company, mobile);
-      if (!found) return;
-      await withTenant(db, found.org.id, (trx) =>
+      if (!found) return {};
+      const r = await withTenant(db, found.org.id, (trx) =>
         otp.issue(trx, {
           organizationId: found.org.id,
           employeeId: found.employee.id,
           purpose: 'employee_login',
           mobile: found.employee.mobile_e164,
           ip,
+          demo: otp.demoCodeAllowed(found.org.slug, found.employee.mobile_e164),
         }),
       );
+      return r.demoCode ? { demoCode: r.demoCode } : {};
     },
 
     async verifyOtp({ company, mobile, code, meta }) {

@@ -22,7 +22,10 @@ before speed.
    get approval.
 3. Implement only the approved phase and keep the app runnable (`make up && make migrate && make dev`).
 4. Every schema change ships with a **Knex migration**. Every business rule ships with **tests**.
-5. Ask the product owner before pushing to GitHub: every push to `main` deploys to Render once CI passes.
+5. Ask the product owner before pushing to GitHub: every push to `main` deploys the pilot to Render once
+   CI passes. Branch `demo` is the free demo deployment: the same application code, and only
+   `render.yaml` differs. Build features on `main`, then merge `main` into `demo`, keeping the demo's
+   `render.yaml` on conflict.
 6. Before declaring work done, run and pass:
 
 ```bash

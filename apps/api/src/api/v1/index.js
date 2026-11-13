@@ -139,7 +139,7 @@ export function apiV1Router({ app, config, checks, db, rateLimitStore, sms, what
       rateLimitStore: limiterStore,
     }),
   );
-  router.use('/patient', patientAccountRouter({ db, authenticate: authenticatePatient }));
+  router.use('/patient', patientAccountRouter({ db, config, authenticate: authenticatePatient }));
   router.use(
     '/public/clinics',
     portalRouter({ db, rateLimitStore: limiterStore, authenticatePatient, notifier }),

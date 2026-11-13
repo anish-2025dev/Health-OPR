@@ -11,6 +11,8 @@ regexes = [
   '''test-secret-key-that-is-long-enough-123456''',
   '''test-whatsapp-app-secret''',
   '''test-verify-token''',
+  # Published password of the fictional demo deployment (DEMO.md); it opens nothing else.
+  '''HealthOS-Demo-2026''',
   # Environment variable NAMES in render.yaml ("- key: SOME_NAME"); values are never stored there.
   '''key:\s*[A-Z][A-Z0-9_]+''',
 ]

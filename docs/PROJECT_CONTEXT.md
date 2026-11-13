@@ -32,16 +32,16 @@ Status: **pilot build**. Synthetic data only, until the legal, payroll and SMS i
 
 ## 2. People, repository, deployment
 
-| Item                     | Value                                                                                                                                                                                                                                                                |
-| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Repository               | `github.com/anish-2025dev/health-opr` (branch `main`). The original spec mentioned `Negi270804/Hlt-OPR`, which was inaccessible                                                                                                                                      |
-| Product owner            | The user in the build conversations (account owner of the repo)                                                                                                                                                                                                      |
-| Teammate seen in history | **Nikhil Negi**: edited `render.yaml` directly on GitHub (free plan, migrations in build, API URL `healthos-api-gjr1`)                                                                                                                                               |
-| Hosting                  | **Render** (Singapore): `healthos-api` (Node, **Starter plan**, always on), `healthos-web` (static, staff/employee app), `healthos-patient` (static, patient website), `healthos-redis` (Key Value, free)                                                            |
-| Database                 | **Neon PostgreSQL 17** (Singapore). App role `healthos_app` (NOBYPASSRLS), pooled `DATABASE_URL`, direct `DATABASE_MIGRATION_URL`                                                                                                                                    |
-| Live API URL             | `https://healthos-api-gjr1.onrender.com` (both static sites rewrite `/api/*` to it)                                                                                                                                                                                  |
-| Live web URLs            | Assigned by Render; not recorded in the repo. Check the Render dashboard                                                                                                                                                                                             |
-| CI                       | GitHub Actions `.github/workflows/ci.yml`: lint, format, unit tests, build; services job (migrations, integration tests, readiness smoke); **gitleaks** secret scan (config `.gitleaks.toml`). Render deploys only after CI passes (`autoDeployTrigger: checksPass`) |
+| Item                     | Value                                                                                                                                                                                                                                                                                                                                    |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Repository               | `github.com/anish-2025dev/health-opr`. **Branch `main` = pilot** (Render Starter, real SMS, real hospitals). **Branch `demo` = free demo** (separate Render services `healthos-demo-*`, its own Neon project; only `render.yaml` differs; logins in `DEMO.md`). The original spec mentioned `Negi270804/Hlt-OPR`, which was inaccessible |
+| Product owner            | The user in the build conversations (account owner of the repo)                                                                                                                                                                                                                                                                          |
+| Teammate seen in history | **Nikhil Negi**: edited `render.yaml` directly on GitHub (free plan, migrations in build, API URL `healthos-api-gjr1`)                                                                                                                                                                                                                   |
+| Hosting                  | **Render** (Singapore): `healthos-api` (Node; **free plan for the demo**, `starter` for the pilot), `healthos-web` (static, staff/employee app), `healthos-patient` (static, patient website), `healthos-redis` (Key Value, free)                                                                                                        |
+| Database                 | **Neon PostgreSQL 17** (Singapore). App role `healthos_app` (NOBYPASSRLS), pooled `DATABASE_URL`, direct `DATABASE_MIGRATION_URL`                                                                                                                                                                                                        |
+| Live API URL             | `https://healthos-api-gjr1.onrender.com` (both static sites rewrite `/api/*` to it)                                                                                                                                                                                                                                                      |
+| Live web URLs            | Assigned by Render; not recorded in the repo. Check the Render dashboard                                                                                                                                                                                                                                                                 |
+| CI                       | GitHub Actions `.github/workflows/ci.yml`: lint, format, unit tests, build; services job (migrations, integration tests, readiness smoke); **gitleaks** secret scan (config `.gitleaks.toml`). Render deploys only after CI passes (`autoDeployTrigger: checksPass`)                                                                     |
 
 **Manual steps pending after the last push** (owner must do in Render; see §12):
 
@@ -66,6 +66,7 @@ Status: **pilot build**. Synthetic data only, until the legal, payroll and SMS i
 | **Platform console** for onboarding hospitals with one-time owner invite links                                                                                                                                                                     | ADR 0011                                                |
 | **Bulk employee upload** from Excel/CSV                                                                                                                                                                                                            | `docs/api.md`                                           |
 | Push policy: **confirm with the owner before every push to GitHub** (pushes trigger Render deploys)                                                                                                                                                | Conversation rule                                       |
+| **Two deployments**: free **demo** (branch `demo`, fictional data, 2 logins of every type, password published in `DEMO.md`, sign-in codes shown on screen for demo numbers) to show partners; **pilot** on Render Starter (branch `main`)          | `DEMO.md`, `docs/deployment/demo-setup.md`              |
 
 ## 4. Architecture in one page
 
@@ -237,6 +238,14 @@ Other building blocks:
   marketing choices → confirm.
 - STOP withdraws WhatsApp consent. No medical details in any message.
 
+**Demo sign-in codes** (`core/demo.js`):
+
+- Only when `SMS_DEMO_CODES=true` **and** `DEMO_HOSPITAL_CODE` is set (demo deployment only).
+- For the demo hospital's fictional numbers `+91 90000 00xxx`, employee sign-in, attendance and
+  patient sign-in codes are returned as `demoCode` and shown on screen, not sent by SMS.
+- Real numbers and other hospitals always use real SMS.
+- Demo-number patient accounts can join only the demo hospital.
+
 **Notifications:**
 
 - After a reception or website booking: WhatsApp template if consented and configured, else SMS if
@@ -342,13 +351,13 @@ connected as a superuser or BYPASSRLS database role.
 
 Local commands (full guide in `README.md`):
 
-| Step                                                                          | Command                                                             |
-| ----------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| Install and create `.env`                                                     | `make setup`                                                        |
-| Start PostgreSQL and Redis                                                    | `make up`                                                           |
-| Create the tables                                                             | `make migrate`                                                      |
-| Load a fictional demo hospital with a login for every role (prints them once) | `npm run seed:demo`; on a deployed server add `-- --allow-deployed` |
-| Run API :4000, staff app :5173 and patient website :5174                      | `make dev`                                                          |
+| Step                                                                                                      | Command                                                                                                    |
+| --------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Install and create `.env`                                                                                 | `make setup`                                                                                               |
+| Start PostgreSQL and Redis                                                                                | `make up`                                                                                                  |
+| Create the tables                                                                                         | `make migrate`                                                                                             |
+| Load a fictional demo hospital with **2 logins of every type** and a month of activity (prints them once) | `npm run seed:demo`; on a deployed server add `-- --allow-deployed`; `DEMO_PASSWORD` sets a fixed password |
+| Run API :4000, staff app :5173 and patient website :5174                                                  | `make dev`                                                                                                 |
 
 - In development, SMS and WhatsApp messages (including OTPs) are **printed in the API terminal**.
 - Other commands:
@@ -364,9 +373,9 @@ Local commands (full guide in `README.md`):
 ## 12. Deployment state and the next manual steps
 
 - `render.yaml` defines 3 web services and Redis.
-- The API is on the **Starter plan** (owner decision for the pilot: ~US$7/month, always on).
-  Migrations and the bootstrap run as `preDeployCommand`. The free-plan alternative is documented
-  in the deployment guide.
+- Owner decision: **free plan for the demo** (to show investors/partners), **Starter (~US$7/month)
+  for the pilot**. The build (`npm ci && npm run db:migrate && npm run bootstrap`) works on both;
+  switching is one line (`plan:`) in `render.yaml` + Blueprint sync.
 
 **Free plan has no Shell.** Use the deploy-time bootstrap (`apps/api/scripts/bootstrap.js`, run in
 the API build) with `BOOTSTRAP_PLATFORM_ADMIN_EMAIL/PASSWORD` and optional
