@@ -148,6 +148,7 @@ describe('WhatsApp self-service for registered patients', () => {
     );
     const reply = await deliver('+919833399999', 'hi, I want an appointment');
     expect(reply).toContain("couldn't find a registered patient");
+    expect(reply).toContain('Reply 1 to register here on WhatsApp');
     expect(reply).toContain(`https://patients.example.test/clinic/${t.organization.slug}`);
     const after = await sys(db, (x) =>
       x('patients').where({ organization_id: t.organization.id }).count({ n: '*' }).first(),
@@ -218,6 +219,77 @@ describe('WhatsApp self-service for registered patients', () => {
     );
     await deliver(FAMILY, 'menu');
     expect(await deliver(FAMILY, '1')).not.toContain('Pending Grandma');
+  });
+});
+
+describe('registering on WhatsApp', () => {
+  const NEW = '+919833300077';
+  const say = (t, id) => deliver(NEW, t, id);
+  const all = () => whatsapp.sent.filter((m) => m.to === NEW).map((m) => m.text);
+
+  it('registers the phone owner after the privacy notice; tidies the name', async () => {
+    await say('hi');
+    whatsapp.clear();
+    await say('1');
+    expect(all().join('\n')).toContain('Notice for tests');
+    expect(await say('no thanks')).toContain('Reply YES');
+    expect(await say('YES')).toContain('1. Myself');
+    expect(await say('1')).toContain('full name');
+    expect(await say('12345')).toContain('letters only');
+    expect(await say('  ravi    KUMAR ')).toContain('Date of birth of Ravi Kumar');
+    expect(await say('31-02-1990')).toContain('day-month-year');
+    expect(await say('15/8/1990')).toContain('Gender');
+    await say('2');
+    await say('1');
+    expect(await say('2')).toContain('Name: Ravi Kumar');
+    const done = await say('1');
+    expect(done).toMatch(/Registered\. Ravi Kumar's patient number is P-\d{6}/);
+    const p = await sys(db, (x) =>
+      x('patients').where({ organization_id: t.organization.id, full_name: 'Ravi Kumar' }).first(),
+    );
+    expect(p).toMatchObject({
+      registration_source: 'whatsapp',
+      date_of_birth: '1990-08-15',
+      gender: 'male',
+    });
+    const consent = await sys(db, (x) =>
+      x('consents').where({ patient_id: p.id, purpose: 'whatsapp_service' }).first(),
+    );
+    expect(consent).toMatchObject({ status: 'granted', channel: 'whatsapp' });
+  });
+
+  it('family members wait for the hospital; the same person is not added twice', async () => {
+    await say('menu');
+    await say('5');
+    await say('yes');
+    expect(await say('2')).toContain('full name');
+    await say('anu kumar');
+    await say('03-03-2019');
+    await say('1');
+    await say('1');
+    await say('2');
+    expect(await say('1')).toContain('hospital will confirm your relationship');
+    await say('menu');
+    await say('5');
+    await say('yes');
+    await say('2');
+    await say('ANU   kumar');
+    await say('3-3-2019');
+    await say('1');
+    await say('1');
+    await say('2');
+    expect(await say('1')).toContain('already registered on this number');
+  });
+
+  it('"My family members" lists names and patient numbers only', async () => {
+    await say('menu');
+    const list = await say('4');
+    expect(list).toMatch(/1\. Ravi Kumar \(You\) — P-\d{6}/);
+    expect(list).toContain("2. Anu Kumar (Child) — awaiting the hospital's check");
+    expect(list).not.toContain('2019');
+    // only the authorized person is offered for booking
+    await say('menu');
+    expect(await say('1')).toContain('Which doctor?');
   });
 });
 

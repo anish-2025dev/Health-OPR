@@ -12,13 +12,10 @@ import { localDate } from '../clinic/calc.js';
 import { addDays } from '../hr-attendance/calc.js';
 import { consentChoicesSchema } from './routes.js';
 import {
+  selfRegister,
   CONSENT_KEYS,
   RELATIONSHIPS,
   currentConsents,
-  flagDuplicates,
-  insertPatient,
-  linkContact,
-  possibleDuplicates,
   presentConsents,
   publishedNotice,
   recordConsents,
@@ -157,96 +154,14 @@ export function portalRouter({ db, rateLimitStore, authenticatePatient, notifier
   router.post('/:slug/patients', portalAuth, async (req, res) => {
     const body = validate(registerSchema, req.body);
     const { org, contact } = req.portal;
-    const result = await withTenant(db, org.id, async (trx) => {
-      if (body.branchId) {
-        const b = await trx('branches')
-          .where({ organization_id: org.id, id: body.branchId, status: 'active' })
-          .first('id');
-        if (!b) throw new AppError(400, 'VALIDATION_ERROR', 'Unknown branch');
-      }
-      const matches = await possibleDuplicates(trx, org.id, {
-        fullName: body.fullName,
-        dateOfBirth: body.dateOfBirth,
-        contactIds: [contact.id],
-      });
-      // Same person already registered on this phone number: don't create a second record.
-      const ownLinks = await trx('contact_patient_links')
-        .where({ organization_id: org.id, contact_id: contact.id })
-        .whereNot('authorization_status', 'revoked')
-        .pluck('patient_id');
-      const already = matches.find(
-        (m) =>
-          ownLinks.includes(m.patientId) &&
-          m.reasons.includes('same_name') &&
-          m.reasons.includes('same_date_of_birth'),
-      );
-      if (already) {
-        throw new AppError(
-          409,
-          'ALREADY_REGISTERED',
-          'This person is already registered on this phone number.',
-        );
-      }
-      const hasSelf = await trx('contact_patient_links')
-        .where({
-          organization_id: org.id,
-          contact_id: contact.id,
-          relationship: 'self',
-          authorization_status: 'authorized',
-        })
-        .first('id');
-      const authorized = body.relationship === 'self' && !hasSelf;
-
-      const patient = await insertPatient(trx, org.id, {
-        full_name: body.fullName,
-        date_of_birth: body.dateOfBirth,
-        gender: body.gender,
-        email: body.email,
-        registered_branch_id: body.branchId,
-        registration_source: 'portal',
-      });
-      await linkContact(trx, org.id, {
-        contact_id: contact.id,
-        patient_id: patient.id,
-        relationship: body.relationship,
-        authorization_status: authorized ? 'authorized' : 'pending',
-        authorized_at: authorized ? trx.fn.now() : null,
-        created_via: 'portal',
-      });
-      await recordConsents(
-        trx,
-        org.id,
-        patient.id,
-        {
-          privacy_notice: true,
-          ...Object.fromEntries(
-            Object.entries(body.consents).map(([k, v]) => [CONSENT_KEYS[k], v]),
-          ),
-        },
-        {
-          channel: 'portal',
-          source: 'clinic_qr_portal',
-          actingContactId: contact.id,
-          actingRelationship: body.relationship,
-        },
-      );
-      await flagDuplicates(trx, org.id, patient.id, matches);
-      await recordAudit(trx, {
-        organizationId: org.id,
-        action: 'patient.registered',
-        entityType: 'patient',
-        entityId: patient.id,
+    const result = await withTenant(db, org.id, (trx) =>
+      selfRegister(trx, org.id, contact, body, {
+        channel: 'portal',
+        source: 'clinic_qr_portal',
         ip: req.ip ?? null,
         requestId: req.id,
-        metadata: { channel: 'portal', relationship: body.relationship, authorized },
-      });
-      return {
-        id: patient.id,
-        patientNumber: authorized ? patient.patient_number : null,
-        fullName: patient.full_name,
-        authorizationStatus: authorized ? 'authorized' : 'pending',
-      };
-    });
+      }),
+    );
     res.status(201).json(result);
   });
 

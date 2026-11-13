@@ -30,8 +30,9 @@ It has three parts:
 - **Live queue:** a token number for every booking and walk-in, arrival check-in, "call next" by
   priority, a waiting-room TV display, and a **live tracking link** for the patient ("now serving 12,
   3 ahead of you, about 25 min"). Patients can leave home at the right time.
-- **WhatsApp** (optional): registered patients book, check and cancel on WhatsApp, and choose which
-  family member a booking is for. Confirmations go by WhatsApp or SMS, following each patient's consent.
+- **WhatsApp** (optional): patients register (privacy notice first), book, check and cancel on
+  WhatsApp, see which family members are registered, and choose who a booking is for. Confirmations
+  go by WhatsApp or SMS, following each patient's consent.
 - **Clinic dashboard and analytics:** visits, no-shows, waiting times, busiest hours, per doctor.
 
 **For HR and staff**

@@ -3,6 +3,7 @@ import { addDays } from '../hr-attendance/calc.js';
 import { localDate } from '../clinic/calc.js';
 import { bookAppointment, loadDoctor, slotsFor, transition } from '../clinic/service.js';
 import { recordConsents } from '../patients/service.js';
+import { continueRegistration, familyList, startRegistration } from './registration.js';
 import { formatDay, formatTime, trackingLink } from '../notifications/index.js';
 
 /**
@@ -19,7 +20,8 @@ import { formatDay, formatTime, trackingLink } from '../notifications/index.js';
 const IDLE_MINUTES = 30;
 const MAX_OPTIONS = 9;
 const MENU =
-  'Reply with a number:\n1. Book an appointment\n2. My appointments\n3. Cancel an appointment\n\nReply MENU at any time to start again, or STOP to stop WhatsApp messages.';
+  'Reply with a number:\n1. Book an appointment\n2. My appointments\n3. Cancel an appointment\n4. My family members\n5. Register a family member\n\nReply MENU at any time to start again, or STOP to stop WhatsApp messages.';
+const RESET = ['menu', 'hi', 'hello', 'start', '0'];
 
 const numbered = (items, label) => items.map((x, i) => `${i + 1}. ${label(x)}`).join('\n');
 const pick = (text, list) => {
@@ -53,9 +55,37 @@ export async function handleMessage(trx, ctx) {
         .orderBy('l.created_at')
         .select('p.id', 'p.full_name', 'l.relationship')
     : [];
+  const conv = await trx('whatsapp_conversations')
+    .where({ organization_id: org.id, phone_e164: phone })
+    .first();
+  const fresh = !conv || Date.now() - new Date(conv.updated_at).getTime() > IDLE_MINUTES * 60_000;
+  const regCtx = { org, phone, text, save, menu: MENU, portalLink };
+
+  // A registration in progress continues until it finishes or the person says MENU.
+  if (!fresh && conv.state.startsWith('reg_') && !RESET.includes(lower)) {
+    return continueRegistration(trx, regCtx, conv.state, conv.data ?? {});
+  }
+
   if (!patients.length) {
+    if (!fresh && conv.state === 'unregistered' && text === '1') {
+      return startRegistration(trx, regCtx, { forFamily: false });
+    }
+    await save('unregistered');
+    const pending = contact
+      ? await trx('contact_patient_links as l')
+          .join('patients as p', 'p.id', 'l.patient_id')
+          .where({
+            'l.organization_id': org.id,
+            'l.contact_id': contact.id,
+            'l.authorization_status': 'pending',
+          })
+          .pluck('p.full_name')
+      : [];
+    const waiting = pending.length
+      ? `\n\nWaiting for the hospital's check: ${pending.join(', ')}. You can book for them once the hospital confirms at your next visit.`
+      : '';
     return [
-      `Welcome to ${org.name}. We couldn't find a registered patient for this WhatsApp number, so we can't book here.\n\nPlease register at ${portalLink} or at the reception. After registering you can book on WhatsApp.`,
+      `Welcome to ${org.name}. We couldn't find a registered patient for this WhatsApp number who can book yet.${waiting}\n\nReply 1 to register here on WhatsApp, or register at ${portalLink} or at the reception.`,
     ];
   }
 
@@ -79,12 +109,7 @@ export async function handleMessage(trx, ctx) {
     ];
   }
 
-  const conv = await trx('whatsapp_conversations')
-    .where({ organization_id: org.id, phone_e164: phone })
-    .first();
-  const fresh = !conv || Date.now() - new Date(conv.updated_at).getTime() > IDLE_MINUTES * 60_000;
-  const state =
-    fresh || ['menu', 'hi', 'hello', 'start', '0'].includes(lower) ? 'start' : conv.state;
+  const state = fresh || RESET.includes(lower) ? 'start' : conv.state;
   const data = fresh ? {} : (conv.data ?? {});
 
   const upcoming = async () =>
@@ -155,6 +180,8 @@ export async function handleMessage(trx, ctx) {
           `Who is the appointment for?\n${numbered(patients, (p) => p.full_name)}\n\nTo add a family member, use ${portalLink}`,
         ];
       }
+      if (text === '4') return [`${await familyList(trx, { org, contact })}\n\n${MENU}`];
+      if (text === '5') return startRegistration(trx, regCtx, { forFamily: true });
       if (text === '2' || text === '3') {
         const list = await upcoming();
         if (!list.length) return [`You have no upcoming appointments.\n\n${MENU}`];

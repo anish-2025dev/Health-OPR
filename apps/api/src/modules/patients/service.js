@@ -238,3 +238,102 @@ export const presentConsents = (map = {}) =>
         : { status: 'not_given', capturedAt: null, channel: null, noticeVersion: null },
     ]),
   );
+
+/**
+ * Registration by the person themselves (patient website or WhatsApp), on a phone number they control.
+ *
+ * - The same person already registered on this number (same name ignoring case, spacing,
+ *   punctuation and titles, and the same date of birth) is not created again.
+ * - The first "self" profile on the number is authorized; anyone else (family) waits for staff to
+ *   confirm the relationship (phone possession is not proof of authority over another person).
+ * - Possible duplicates elsewhere in the hospital are flagged for staff review, never merged.
+ */
+export async function selfRegister(trx, orgId, contact, body, ctx) {
+  if (body.branchId) {
+    const b = await trx('branches')
+      .where({ organization_id: orgId, id: body.branchId, status: 'active' })
+      .first('id');
+    if (!b) throw new AppError(400, 'VALIDATION_ERROR', 'Unknown branch');
+  }
+  const matches = await possibleDuplicates(trx, orgId, {
+    fullName: body.fullName,
+    dateOfBirth: body.dateOfBirth,
+    contactIds: [contact.id],
+  });
+  const ownLinks = await trx('contact_patient_links')
+    .where({ organization_id: orgId, contact_id: contact.id })
+    .whereNot('authorization_status', 'revoked')
+    .pluck('patient_id');
+  const already = matches.find(
+    (m) =>
+      ownLinks.includes(m.patientId) &&
+      m.reasons.includes('same_name') &&
+      m.reasons.includes('same_date_of_birth'),
+  );
+  if (already) {
+    throw new AppError(
+      409,
+      'ALREADY_REGISTERED',
+      'This person is already registered on this phone number.',
+    );
+  }
+  const hasSelf = await trx('contact_patient_links')
+    .where({
+      organization_id: orgId,
+      contact_id: contact.id,
+      relationship: 'self',
+      authorization_status: 'authorized',
+    })
+    .first('id');
+  const authorized = body.relationship === 'self' && !hasSelf;
+
+  const patient = await insertPatient(trx, orgId, {
+    full_name: body.fullName,
+    date_of_birth: body.dateOfBirth,
+    gender: body.gender ?? null,
+    email: body.email ?? null,
+    registered_branch_id: body.branchId ?? null,
+    registration_source: ctx.channel,
+  });
+  await linkContact(trx, orgId, {
+    contact_id: contact.id,
+    patient_id: patient.id,
+    relationship: body.relationship,
+    authorization_status: authorized ? 'authorized' : 'pending',
+    authorized_at: authorized ? trx.fn.now() : null,
+    created_via: ctx.channel,
+  });
+  await recordConsents(
+    trx,
+    orgId,
+    patient.id,
+    {
+      privacy_notice: true,
+      ...Object.fromEntries(
+        Object.entries(body.consents ?? {}).map(([k, v]) => [CONSENT_KEYS[k], v]),
+      ),
+    },
+    {
+      channel: ctx.channel,
+      source: ctx.source,
+      actingContactId: contact.id,
+      actingRelationship: body.relationship,
+    },
+  );
+  await flagDuplicates(trx, orgId, patient.id, matches);
+  await trx('audit_logs').insert({
+    organization_id: orgId,
+    action: 'patient.registered',
+    entity_type: 'patient',
+    entity_id: patient.id,
+    ip: ctx.ip ?? null,
+    request_id: ctx.requestId ?? null,
+    metadata: { channel: ctx.channel, relationship: body.relationship, authorized },
+  });
+  return {
+    id: patient.id,
+    patientNumber: authorized ? patient.patient_number : null,
+    fullName: patient.full_name,
+    authorizationStatus: authorized ? 'authorized' : 'pending',
+  };
+}

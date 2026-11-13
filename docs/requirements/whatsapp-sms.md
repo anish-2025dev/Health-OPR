@@ -10,13 +10,32 @@ Patients who are **already registered** on a phone number can message the hospit
 2. **See upcoming appointments**, with live-status links.
 3. **Cancel** an appointment that has not started.
 
+4. **See family members** registered on the number: names and patient numbers, or "awaiting the
+   hospital's check". No other personal details.
+5. **Register** themselves or a family member (see below).
+
 `MENU` starts again. `STOP` withdraws WhatsApp consent for that number's patients. A conversation
 resets after 30 minutes of silence.
 
+### Registering on WhatsApp ([ADR 0010](../adr/0010-whatsapp-registration.md))
+
+A number with no registered patient is offered "Reply 1 to register here on WhatsApp". The steps:
+
+1. The patient reads the privacy notice and replies YES.
+2. They say who they are registering: themselves or a family member (and the relationship).
+3. They give the full name. It is tidied: "ravi KUMAR" becomes "Ravi Kumar".
+4. They give the date of birth (15-08-1990, 15/8/1990 or 1990-08-15).
+5. They give the gender.
+6. They answer whether to send WhatsApp updates, and whether to send health camps and offers.
+7. They confirm.
+
+The first "self" profile is active at once and gets a patient number. Family members wait for the
+hospital's check before they can be booked. The same person is never added twice on one number.
+
 Rules (spec):
 
-- WhatsApp **never creates a patient**. An unknown number gets the hospital's registration link
-  (patient website) or is asked to visit the reception.
+- WhatsApp creates a patient **only** through the registration steps above (privacy notice
+  acknowledgement first). It never creates one from a booking message.
 - Only **authorized** family links are offered. Family members still awaiting the hospital's check
   are not.
 - No medical details in any message.

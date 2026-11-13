@@ -58,7 +58,8 @@ npm run test:integration --workspace apps/api
 - **Notifications** (SMS/WhatsApp) never include medical details by default. Use generic text and a secure link.
 - **A phone number is a contact channel, not a patient identity.** Never auto-merge patients based on
   phone or name alone.
-- **WhatsApp never creates patient profiles.** It serves existing registered patients only.
+- **WhatsApp creates patient profiles only through its registration flow** (privacy notice first,
+  family members pending staff check; see ADR 0010). It never creates one from a booking message.
 - **Integrations go through adapters** (`apps/api/src/integrations/<kind>/`) so vendors can be swapped.
 
 ## Code conventions
