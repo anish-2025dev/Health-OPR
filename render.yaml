@@ -1,18 +1,20 @@
 # Render Blueprint: https://render.com/docs/blueprint-spec
-# PILOT deployment (branch main). Creates the API, the staff/employee web app, the patient website
-# and a private Redis-compatible Key Value instance.
+# DEMO deployment (branch demo, Render FREE plan). Same application code as main; only this file
+# differs. Creates healthos-demo-* services and, on the first deploy, a demo hospital with fictional
+# people and 2 logins of every type (see DEMO.md and docs/deployment/demo-setup.md).
+# Use a SEPARATE Neon project for the demo, never the pilot's database.
 # PostgreSQL is hosted on Neon (not Render). Paste Neon's connection strings when Render prompts for
 # the `sync: false` variables. Never commit real values to this file.
 
 services:
   # ---------------------------------------------------------------- API (Express)
   - type: web
-    name: healthos-api
+    name: healthos-demo-api
     runtime: node
     region: singapore # keep close to the Neon region (AWS ap-southeast-1, Singapore)
-    # PILOT (branch main): always on, ~US$7/month. The free DEMO deployment lives on the `demo`
-    # branch with its own services and database (see docs/deployment/demo-setup.md).
-    plan: starter
+    # DEMO: free plan (sleeps after ~15 minutes idle). The pilot on branch main uses Starter.
+    plan: free
+    branch: demo
     # Works on both plans: install, update the database, then the optional first logins / demo hospital
     # from the BOOTSTRAP_* variables below (does nothing when they are empty).
     buildCommand: npm ci && npm run db:migrate && npm run bootstrap --workspace apps/api
@@ -44,60 +46,42 @@ services:
       # Neon DIRECT connection string (host without "-pooler"), used only for migrations
       - key: DATABASE_MIGRATION_URL
         sync: false
-      # https:// URL of the healthos-web static site, used for CORS
+      # https:// URL of the healthos-demo-web static site, used for CORS
       - key: FRONTEND_URL
         sync: false
-      # https:// URL of the healthos-patient static site (CORS and links sent to patients)
+      # https:// URL of the healthos-demo-patient static site (CORS and links sent to patients)
       - key: PATIENT_SITE_URL
         sync: false
       - key: REDIS_URL
         fromService:
           type: keyvalue
-          name: healthos-redis
+          name: healthos-demo-redis
           property: connectionString
-      # SMS for employee OTPs (sign-in and attendance). Needs an MSG91 account with a DLT-approved
-      # OTP template. Until these are set, employee sign-in and attendance show "SMS not set up".
+      # No SMS account on the demo: sign-in codes for the demo hospital's fictional numbers
+      # (+91 90000 00xxx) are shown on screen. Real numbers get "SMS not set up".
       - key: SMS_PROVIDER
-        value: msg91
-      # First platform-console login (free plan has no Shell). Set once; it must be changed at first
-      # sign-in, after which BOOTSTRAP_PLATFORM_ADMIN_PASSWORD can be deleted.
-      - key: BOOTSTRAP_PLATFORM_ADMIN_EMAIL
-        sync: false
-      - key: BOOTSTRAP_PLATFORM_ADMIN_PASSWORD
-        sync: false
-      - key: MSG91_AUTH_KEY
-        sync: false
-      - key: MSG91_OTP_TEMPLATE_ID
-        sync: false
-      # Name of the OTP variable in your MSG91 template (e.g. otp or var1).
-      - key: MSG91_OTP_VARIABLE
-        value: otp
-      # Optional SMS appointment confirmations (separate DLT template).
-      - key: MSG91_APPOINTMENT_TEMPLATE_ID
-        sync: false
-      # Optional "you have a new message" SMS for employees (separate DLT template).
-      - key: MSG91_MESSAGE_ALERT_TEMPLATE_ID
-        sync: false
-      # WhatsApp Business Platform (Meta Cloud API). Leave the provider empty until Meta is set up.
-      # Webhook URL to give Meta: https://<api host>/api/v1/webhooks/whatsapp
+        value: ''
+      - key: SMS_DEMO_CODES
+        value: 'true'
+      # Creates the demo hospital on the first deploy (skipped once it exists). Change the code
+      # (e.g. demo-hospital-2) and redeploy to get a fresh copy.
+      - key: DEMO_HOSPITAL_CODE
+        value: demo-hospital
+      # Demo-only password for every demo email login, published in DEMO.md. Never use it elsewhere.
+      - key: DEMO_PASSWORD
+        value: HealthOS-Demo-2026
+      # WhatsApp is not set up on the demo.
       - key: WHATSAPP_PROVIDER
-        sync: false
-      - key: WHATSAPP_ACCESS_TOKEN
-        sync: false
-      - key: WHATSAPP_APP_SECRET
-        sync: false
+        value: ''
       - key: WHATSAPP_VERIFY_TOKEN
         generateValue: true
-      - key: WHATSAPP_GRAPH_API_VERSION
-        sync: false
-      - key: WHATSAPP_APPOINTMENT_TEMPLATE
-        sync: false
 
   # ---------------------------------------------------------------- Web (React static site)
   - type: web
-    name: healthos-web
+    name: healthos-demo-web
     runtime: static
     buildCommand: npm ci && npm run build --workspace apps/web
+    branch: demo
     staticPublishPath: apps/web/dist
     autoDeployTrigger: checksPass # deploy only after GitHub CI passes
     buildFilter:
@@ -112,7 +96,7 @@ services:
       # If Render assigns the API a different URL, update this destination to match.
       - type: rewrite
         source: /api/*
-        destination: https://healthos-api-gjr1.onrender.com/api/*
+        destination: https://healthos-demo-api.onrender.com/api/*
       # Single-page app: every other path serves index.html.
       - type: rewrite
         source: /*
@@ -152,9 +136,10 @@ services:
   # Same codebase built with VITE_APP_SURFACE=patient. Separate address, separate deploy and CDN
   # traffic; it contains no staff code.
   - type: web
-    name: healthos-patient
+    name: healthos-demo-patient
     runtime: static
     buildCommand: npm ci && npm run build:patient --workspace apps/web
+    branch: demo
     staticPublishPath: apps/web/dist-patient
     autoDeployTrigger: checksPass
     buildFilter:
@@ -167,7 +152,7 @@ services:
       # Same-origin API so the patient's HttpOnly sign-in cookie is first-party.
       - type: rewrite
         source: /api/*
-        destination: https://healthos-api-gjr1.onrender.com/api/*
+        destination: https://healthos-demo-api.onrender.com/api/*
       - type: rewrite
         source: /*
         destination: /index.html
@@ -201,7 +186,7 @@ services:
 
   # ---------------------------------------------------------------- Redis-compatible cache / queue
   - type: keyvalue
-    name: healthos-redis
+    name: healthos-demo-redis
     region: singapore
     plan: free
     maxmemoryPolicy: noeviction # required later for BullMQ job queues
