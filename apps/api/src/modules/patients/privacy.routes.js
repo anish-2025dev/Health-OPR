@@ -6,6 +6,7 @@ import { AppError, conflict, notFound } from '../../core/errors.js';
 import { auditContext, recordAudit } from '../audit/index.js';
 import { PERMISSIONS, requirePermission } from '../staff-access/permissions.js';
 import { loadPatientSettings } from './service.js';
+import { moveOpenVisits } from '../clinic/patient-visits.js';
 
 const P = PERMISSIONS;
 
@@ -316,7 +317,9 @@ export function privacyRouter({ db }) {
             decided_by_user_id: req.auth.userId,
             decided_at: trx.fn.now(),
           });
-        merged = { keptPatientId: body.keepPatientId, mergedPatientId: removeId };
+        // Bookings and queue tokens follow the person to the kept record.
+        const visits = await moveOpenVisits(trx, org, removeId, body.keepPatientId);
+        merged = { keptPatientId: body.keepPatientId, mergedPatientId: removeId, visits };
       }
       await trx('patient_duplicate_flags').where({ id: flag.id }).update({
         status: body.decision,

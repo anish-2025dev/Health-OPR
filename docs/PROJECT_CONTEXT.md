@@ -204,6 +204,13 @@ Other building blocks:
   - a shared phone alone is never a match;
   - reception sees possible matches; a confirmed registration creates a review item;
   - only a person can merge (kept record + `merged` record, nothing deleted).
+  - merging moves the duplicate's open bookings and queue tokens to the kept record; one that
+    clashes with a kept booking (same doctor, same day) is cancelled (`clinic/patient-visits.js`).
+- **Inactive patients** (profile → **Mark inactive**; records are never deleted): their open bookings
+  and queue tokens are cancelled, they can't be booked, and they leave the patient site. Refused while
+  the patient is in consultation. **Reactivate** restores the record (not the cancelled bookings).
+- **Queue board**: done, cancelled and no-show entries are listed in a separate collapsed section,
+  not among the people waiting.
 - **Consent**: append-only records per purpose (`privacy_notice`, `whatsapp_service`,
   `sms_service`, `marketing`) with channel, source, acting contact and notice version. The newest
   record wins. `communicationAllowed()` gates messages. A published privacy notice is required

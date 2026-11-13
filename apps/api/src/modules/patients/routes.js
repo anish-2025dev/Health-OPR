@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { cancelOpenVisits } from '../clinic/patient-visits.js';
 import { z } from 'zod';
 import { validate } from '../../core/validate.js';
 import { isUuid, withTenant } from '../../core/db.js';
@@ -338,6 +339,11 @@ export function patientsRouter({ db }) {
       if (p.status === 'merged') {
         throw new AppError(409, 'PATIENT_MERGED', 'This record was merged; edit the kept record');
       }
+      // An inactive patient keeps their history but leaves every queue and future booking.
+      const cancelled =
+        body.status === 'inactive' && p.status !== 'inactive'
+          ? await cancelOpenVisits(trx, org, p.id, 'Patient record set to inactive')
+          : null;
       await trx('patients')
         .where({ organization_id: org, id: p.id })
         .update({ ...toColumns(body), updated_at: trx.fn.now() });
@@ -346,7 +352,7 @@ export function patientsRouter({ db }) {
         action: 'patient.updated',
         entityType: 'patient',
         entityId: p.id,
-        metadata: { fields: Object.keys(body) },
+        metadata: { fields: Object.keys(body), ...(cancelled ? { cancelled } : {}) },
       });
       return loadDetail(trx, org, await loadPatient(trx, org, p.id), req.auth);
     });
