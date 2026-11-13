@@ -1,6 +1,11 @@
 # AGENTS.md: instructions for coding agents and contributors
 
-Read this file and [`docs/healthos-platform-project-spec.json`](docs/healthos-platform-project-spec.json)
+**Start with [`docs/PROJECT_CONTEXT.md`](docs/PROJECT_CONTEXT.md)**: what has been built, every product
+decision and its reason, the deployment state, and what is not built. Answer questions about the
+project from that file and the code, never from memory, and update it whenever a feature, decision or
+deployment fact changes.
+
+Then read this file and [`docs/healthos-platform-project-spec.json`](docs/healthos-platform-project-spec.json)
 before changing anything. The spec is the primary requirements document. ADRs in `docs/adr` record
 deliberate departures from it, so read those too.
 
@@ -17,7 +22,8 @@ before speed.
    get approval.
 3. Implement only the approved phase and keep the app runnable (`make up && make migrate && make dev`).
 4. Every schema change ships with a **Knex migration**. Every business rule ships with **tests**.
-5. Before declaring work done, run and pass:
+5. Ask the product owner before pushing to GitHub: every push to `main` deploys to Render once CI passes.
+6. Before declaring work done, run and pass:
 
 ```bash
 npm run lint && npm run format:check && npm test && npm run build
@@ -27,8 +33,8 @@ npm run lint && npm run format:check && npm test && npm run build
 npm run test:integration --workspace apps/api
 ```
 
-6. Update the README, `.env.example` and API docs whenever setup, variables or endpoints change.
-7. **Ask before implementing** anything ambiguous that affects patient safety, privacy, payroll
+7. Update the README, `.env.example` and API docs whenever setup, variables or endpoints change.
+8. **Ask before implementing** anything ambiguous that affects patient safety, privacy, payroll
    correctness or legal compliance.
 
 ## Hard rules
