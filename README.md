@@ -19,13 +19,13 @@ The **Suntek Ecosystem** is a multi-tenant healthcare SaaS architecture consisti
 | **Platform Console** | SaaS Operator Team                          | `npm run dev:platform` | http://localhost:5173 | `apps/web/dist-platform` |
 | **API Backend**      | All frontend surfaces & external webhooks   | `npm run dev:api`      | http://localhost:4000 | Node.js Express 5 API    |
 
-| Product Surface | Primary Users | Development Command | Default Local Port | Target Build Artifact |
-| --- | --- | --- | --- | --- |
-| **Suntek-Mgt** | HR, Managers, Team Leads, Employees | `npm run dev:mgt` | http://localhost:5173 | `apps/web/dist-mgt` |
-| **Suntek-ops** | Hospital Owners, Admins, Doctors, Reception | `npm run dev:ops` | http://localhost:5173 | `apps/web/dist-ops` |
-| **Patient Website** | Patients and Family Members | `npm run dev:patient` | http://localhost:5174 | `apps/web/dist-patient` |
-| **Platform Console**| SaaS Operator Team | `npm run dev:platform` | http://localhost:5173 | `apps/web/dist-platform` |
-| **API Backend** | All frontend surfaces & external webhooks | `npm run dev:api` | http://localhost:4000 | Node.js Express 5 API |
+| Product Surface      | Primary Users                               | Development Command    | Default Local Port    | Target Build Artifact    |
+| -------------------- | ------------------------------------------- | ---------------------- | --------------------- | ------------------------ |
+| **Suntek-Mgt**       | HR, Managers, Team Leads, Employees         | `npm run dev:mgt`      | http://localhost:5173 | `apps/web/dist-mgt`      |
+| **Suntek-ops**       | Hospital Owners, Admins, Doctors, Reception | `npm run dev:ops`      | http://localhost:5173 | `apps/web/dist-ops`      |
+| **Patient Website**  | Patients and Family Members                 | `npm run dev:patient`  | http://localhost:5174 | `apps/web/dist-patient`  |
+| **Platform Console** | SaaS Operator Team                          | `npm run dev:platform` | http://localhost:5173 | `apps/web/dist-platform` |
+| **API Backend**      | All frontend surfaces & external webhooks   | `npm run dev:api`      | http://localhost:4000 | Node.js Express 5 API    |
 
 > **Pilot build. Use made-up (synthetic) data only.** Read [Before real data](#before-real-patient-or-employee-data)
 > before entering any real patient or employee information.
