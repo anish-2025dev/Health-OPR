@@ -13,10 +13,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  checks:
-    name: Lint, test, build
+  lint-and-format:
+    name: Lint & format check
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
@@ -28,11 +28,52 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run format:check
-      - run: npm test
-      - run: npm run build
+
+  test-domains:
+    name: Unit tests (${{ matrix.domain }})
+    needs: lint-and-format
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        domain: [mgt, ops, platform]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+      - name: Run ${{ matrix.domain }} domain tests
+        run: npm run test:${{ matrix.domain }}
+
+  build-surfaces:
+    name: Build frontend surfaces (${{ matrix.surface }})
+    needs: lint-and-format
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        surface: [mgt, ops, patient, platform]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+      - name: Build ${{ matrix.surface }} bundle
+        run: npm run build:${{ matrix.surface }}
 
   services:
     name: Services and migrations
+    needs: [test-domains, build-surfaces]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

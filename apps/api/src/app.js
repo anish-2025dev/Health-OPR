@@ -30,7 +30,12 @@ export function createApp({ config, logger, checks, db, rateLimitStore, sms, wha
       autoLogging: config.APP_ENV !== 'test',
       // Log the minimum needed for tracing. Headers, query strings and bodies may carry personal data.
       serializers: {
-        req: (req) => ({ id: req.id, method: req.method, path: req.url?.split('?')[0] }),
+        req: (req) => ({
+          id: req.id,
+          correlationId: req.correlationId,
+          method: req.method,
+          path: req.url?.split('?')[0],
+        }),
         res: (res) => ({ statusCode: res.statusCode }),
       },
     }),
