@@ -38,6 +38,18 @@ export const PERMISSIONS = Object.freeze({
   APPOINTMENTS_READ: 'appointments.read',
   APPOINTMENTS_MANAGE: 'appointments.manage', // book, cancel, walk-ins, any queue in branch scope
   QUEUE_MANAGE: 'queue.manage', // check in, call, start, complete (doctors: their own queue only)
+  // Task Management System
+  TASKS_READ: 'tasks.read',
+  TASKS_MANAGE: 'tasks.manage',
+  // Employee Financial Claims & Loans
+  CLAIMS_READ: 'claims.read',
+  CLAIMS_MANAGE: 'claims.manage',
+  CLAIMS_AUDIT: 'claims.audit',
+  // Shift change & Profile update requests
+  SHIFT_REQUESTS_READ: 'shift_requests.read',
+  SHIFT_REQUESTS_MANAGE: 'shift_requests.manage',
+  PROFILE_REQUESTS_READ: 'profile_requests.read',
+  PROFILE_REQUESTS_MANAGE: 'profile_requests.manage',
 });
 
 const ALL = Object.values(PERMISSIONS);
@@ -66,6 +78,10 @@ export const ROLES = Object.freeze({
       P.APPOINTMENTS_READ,
       P.APPOINTMENTS_MANAGE,
       P.QUEUE_MANAGE,
+      P.TASKS_READ,
+      P.TASKS_MANAGE,
+      P.SHIFT_REQUESTS_READ,
+      P.SHIFT_REQUESTS_MANAGE,
     ],
   },
   hr_manager: {
@@ -81,6 +97,14 @@ export const ROLES = Object.freeze({
       P.ATTENDANCE_MANAGE,
       P.LEAVE_READ,
       P.LEAVE_MANAGE,
+      P.TASKS_READ,
+      P.TASKS_MANAGE,
+      P.CLAIMS_READ,
+      P.CLAIMS_MANAGE,
+      P.SHIFT_REQUESTS_READ,
+      P.SHIFT_REQUESTS_MANAGE,
+      P.PROFILE_REQUESTS_READ,
+      P.PROFILE_REQUESTS_MANAGE,
     ],
   },
   // Payroll managers prepare payroll and record payments; an owner/admin approves it.
@@ -100,7 +124,26 @@ export const ROLES = Object.freeze({
   // Department managers see and approve their direct reports through the employee reporting line.
   department_manager: {
     label: 'Department manager',
-    permissions: [P.BRANCHES_READ, P.HOLIDAYS_READ],
+    permissions: [
+      P.BRANCHES_READ,
+      P.HOLIDAYS_READ,
+      P.TASKS_READ,
+      P.TASKS_MANAGE,
+      P.SHIFT_REQUESTS_READ,
+      P.SHIFT_REQUESTS_MANAGE,
+    ],
+  },
+  // Team Leader role (SRS §2) - manages team members, tasks, deadlines, shift requests.
+  team_leader: {
+    label: 'Team leader',
+    permissions: [
+      P.BRANCHES_READ,
+      P.HOLIDAYS_READ,
+      P.TASKS_READ,
+      P.TASKS_MANAGE,
+      P.SHIFT_REQUESTS_READ,
+      P.SHIFT_REQUESTS_MANAGE,
+    ],
   },
   // Clinical/front-desk roles: no employee records (spec: no salary/PF/ESI access by default).
   // HR and payroll roles above get no patient permissions (spec).

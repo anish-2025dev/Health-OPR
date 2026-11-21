@@ -5,12 +5,18 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:mgt": "vite --mode mgt",
+    "dev:ops": "vite --mode ops",
+    "dev:patient": "vite --mode patient",
+    "dev:platform": "vite --mode platform",
     "build": "vite build",
+    "build:mgt": "vite build --mode mgt --outDir dist-mgt",
+    "build:ops": "vite build --mode ops --outDir dist-ops",
+    "build:patient": "vite build --mode patient --outDir dist-patient",
+    "build:platform": "vite build --mode platform --outDir dist-platform",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest",
-    "dev:patient": "VITE_APP_SURFACE=patient vite",
-    "build:patient": "VITE_APP_SURFACE=patient vite build --outDir dist-patient"
+    "test:watch": "vitest"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.5",
@@ -28,11 +34,10 @@
     "@hookform/resolvers": "^7.0.5",
     "@tanstack/react-query": "^5.107.1",
     "qrcode": "^1.5.4",
-    "react": "^19.3.1",
-    "react-dom": "^19.3.1",
-    "react-hook-form": "^7.91.0",
-    "react-router": "^8.5.1",
-    "read-excel-file": "^9.3.12",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-hook-form": "^7.54.2",
+    "react-router": "^7.3.0",
     "zod": "^4.6.7"
   }
 }

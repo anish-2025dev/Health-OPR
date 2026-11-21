@@ -44,7 +44,7 @@ export function createEmployeeLogin({ db, otp, authService }) {
       return r.demoCode ? { demoCode: r.demoCode } : {};
     },
 
-    async verifyOtp({ company, mobile, code, meta }) {
+    async verifyOtp({ company, mobile, code, deviceFingerprint, deviceLabel, meta }) {
       const found = await findEmployee(company, mobile);
       if (!found) {
         throw new AppError(
@@ -58,6 +58,39 @@ export function createEmployeeLogin({ db, otp, authService }) {
       return otp.verify(
         { organizationId: org.id, employeeId: employee.id, purpose: 'employee_login', code },
         async (trx) => {
+          // Device restriction check (§3.2)
+          if (deviceFingerprint) {
+            const activeDevice = await trx('employee_device_registrations')
+              .where({
+                organization_id: org.id,
+                employee_id: employee.id,
+                is_active: true,
+              })
+              .first();
+
+            if (!activeDevice) {
+              await trx('employee_device_registrations').insert({
+                organization_id: org.id,
+                employee_id: employee.id,
+                device_fingerprint: deviceFingerprint,
+                device_label: deviceLabel || meta.userAgent || null,
+                is_active: true,
+                registered_at: trx.fn.now(),
+                last_seen_at: trx.fn.now(),
+              });
+            } else if (activeDevice.device_fingerprint !== deviceFingerprint) {
+              throw new AppError(
+                403,
+                'DEVICE_RESTRICTED',
+                'This account is registered to another device. Simultaneous logins from multiple devices are not allowed. Contact HR to reset your registered device.',
+              );
+            } else {
+              await trx('employee_device_registrations')
+                .where({ id: activeDevice.id })
+                .update({ last_seen_at: trx.fn.now() });
+            }
+          }
+
           let user;
           if (employee.user_id) {
             user = await trx('users')

@@ -1,13 +1,31 @@
 import { Suspense, lazy } from 'react';
 
 /**
- * Two websites from one codebase. VITE_APP_SURFACE is replaced at build time, so each build contains
- * only its own app: the staff/employee app, or the patient website (VITE_APP_SURFACE=patient).
+ * Multi-product surface selection:
+ * - 'mgt': Suntek-Mgt (Human Resource Management System)
+ * - 'ops': Suntek-ops (Hospital Management and Operations)
+ * - 'patient': Standalone Public Patient Portal
+ * - 'platform': Operator Control Plane Console
+ * - 'staff' (default): Full legacy combined portal for backward compatibility
  */
-const Surface =
-  import.meta.env.VITE_APP_SURFACE === 'patient'
-    ? lazy(() => import('@/patient/PatientApp'))
-    : lazy(() => import('./StaffRoot'));
+function getSurface() {
+  const surface = import.meta.env.VITE_APP_SURFACE;
+  switch (surface) {
+    case 'mgt':
+      return lazy(() => import('@/mgt/MgtApp'));
+    case 'ops':
+      return lazy(() => import('@/ops/OpsApp'));
+    case 'patient':
+      return lazy(() => import('@/patient/PatientApp'));
+    case 'platform':
+      return lazy(() => import('@/platform/PlatformApp'));
+    case 'staff':
+    default:
+      return lazy(() => import('./StaffRoot'));
+  }
+}
+
+const Surface = getSurface();
 
 export function Root() {
   return (

@@ -123,6 +123,9 @@ CSRF: cookie-based endpoints require the header `X-Requested-With: healthos-web`
 | 11  | employee_messages           | employee_messages, employee_message_recipients                                                                                                        |
 | 12  | platform_admin              | platform_admins, platform_sessions, platform_audit_logs, user_invites (tenant RLS)                                                                    |
 | 13  | whatsapp_registration       | allows `whatsapp` as patient registration / link channel                                                                                              |
+| 14  | tasks                       | tasks, task_comments (tenant RLS forced)                                                                                                              |
+| 15  | employee_claims             | employee_claims (tenant RLS forced)                                                                                                                   |
+| 16  | device_shift_profile        | employee_device_registrations, shift_change_requests, profile_update_requests (tenant RLS forced)                                                     |
 
 IDs are UUIDs; money is `numeric` and handled as strings or BigInt paise; timestamps are `timestamptz`;
 `date` columns come back as `'YYYY-MM-DD'` strings (pg type parser).
@@ -135,14 +138,18 @@ IDs are UUIDs; money is `numeric` and handled as strings or BigInt paise; timest
 | `/auth`                                                | authentication                               | staff login/refresh/logout/me/change-password; employee OTP login; **invite** `/invite/:token`, `/invite/accept` |
 | `/organizations`, `/branches`, `/users`, `/audit-logs` | organizations, branches, staff-access, audit | org settings, branches + geofence, users & roles, audit                                                          |
 | `/departments` `/designations` `/shifts` `/holidays`   | org-structure                                | company structure                                                                                                |
-| `/hr/employees` (+ `/import`)                          | hr-employees                                 | employees; **bulk upload**                                                                                       |
+| `/shift-requests`, `/me/shift-requests`                | org-structure/shift-requests                 | shift change requests (temporary, permanent, swap)                                                               |
+| `/hr/employees` (+ `/import`, `/:id/device`)           | hr-employees, device                         | employees; bulk upload; device registration & reset                                                              |
+| `/hr/profile-requests`, `/me/profile-requests`         | hr-employees/profile-requests                | profile update requests & HR approval queue                                                                      |
+| `/tasks`, `/me/tasks`                                  | tasks                                        | task allocation, monitoring, employee task dashboard, deadlines & comments                                       |
+| `/hr/claims`, `/me/claims`                             | hr-claims                                    | financial requests: insurance, salary advance, loans & repayment                                                 |
 | `/attendance`, `/me`                                   | hr-attendance                                | admin attendance; self attendance (start → OTP → confirm)                                                        |
 | `/leave`, `/me/leave`                                  | hr-leave                                     | leave admin; own leave                                                                                           |
 | `/payroll`, `/payroll/statutory`, `/me/payslips`       | hr-payroll, hr-statutory                     | payroll runs, payslips PDF/ZIP/CSV, statutory rules                                                              |
 | `/messages`, `/me/messages`                            | messages                                     | messages to employees; inbox                                                                                     |
 | `/patients`, `/privacy`                                | patients                                     | patients, contacts/family links, consent; notices, duplicates, data requests, matching settings                  |
 | `/doctors`, `/appointments`, `/queue`                  | clinic                                       | schedules, slots, booking, walk-ins, queue actions, summary, visits                                              |
-| `/analytics`                                           | analytics                                    | `/workforce`, `/clinic`                                                                                          |
+| `/analytics`                                           | analytics                                    | `/workforce`, `/clinic`, `/owner` (full organization statistics)                                                 |
 | `/integrations`                                        | whatsapp                                     | hospital WhatsApp number, notification log                                                                       |
 | `/webhooks/whatsapp`                                   | whatsapp                                     | Meta webhook (signature-verified)                                                                                |
 | `/platform`                                            | platform                                     | operator console (separate login)                                                                                |
@@ -471,3 +478,16 @@ Operations guide: `docs/operations/runbook.md`. Deployment guide: `docs/deployme
 | Roadmap                   | `docs/roadmap.md`                                         |
 | Deploy                    | `docs/deployment/render-neon.md`                          |
 | Operations                | `docs/operations/runbook.md`                              |
+| Suntek Ecosystem Arch     | `docs/architecture/suntek-*-architecture.md`              |
+| Integration Contracts     | `docs/architecture/integration-contracts.md`              |
+| Migration Plan & Risks    | `docs/architecture/migration-plan-and-risk-analysis.md`   |
+
+## 16. Suntek Ecosystem Restructuring Status
+
+The platform is transitioning into two independent SaaS products (Suntek-Mgt and Suntek-ops) alongside the Platform Console:
+
+- **Phase 0 (System Audit & Baseline):** Completed. Feature gap analysis and 131 test baseline established.
+- **Phase 1 (Architectural Design & Contracts):** Completed. Formal boundary definitions, integration contracts, and deployment topologies documented in `docs/architecture/`.
+- **Phase 2 (Logical Product Decoupling):** Completed. Decoupled domain router factories implemented (`createMgtRouter`, `createOpsRouter`, `createPlatformDomainRouter`), mounted under `/api/v1/mgt/*`, `/api/v1/ops/*`, and `/api/v1/platform/*` while retaining 100% backward-compatible root `/api/v1/*` routes. Verified with 135 automated tests passing.
+- **Phase 3 (Frontend Surfaces & Build Targets):** Completed. Standalone portal shells created (`apps/web/src/mgt/MgtApp.jsx`, `apps/web/src/ops/OpsApp.jsx`), multi-surface switcher implemented in `Root.jsx`, independent build scripts configured (`build:mgt`, `build:ops`, `build:patient`, `build:platform`), and verified with 138 passing tests and independent production builds under 1 second.
+- **Phase 4 (Database Decoupling & Isolation Strategy):** Ready for implementation. Safe foreign key relaxation on `doctors.department_id`, domain repository separation, and independent query verification.
