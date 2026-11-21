@@ -1,0 +1,127 @@
+import { NavLink, Outlet } from 'react-router';
+import { useAuth } from '@/features/auth/auth-context';
+import { Button } from '@/components/ui';
+import { useUnreadMessages } from '@/features/messages/shared';
+
+const MGT_NAV = [
+  {
+    to: '/',
+    label: 'Dashboard',
+    end: true,
+    show: (a) => !a.me.roles.every((r) => r.role === 'employee'),
+  },
+  { to: '/my-attendance', label: 'My attendance', show: (a) => Boolean(a.me.employee) },
+  { to: '/my-leave', label: 'My leave', show: (a) => Boolean(a.me.employee) },
+  { to: '/my-payslips', label: 'My payslips', show: (a) => Boolean(a.me.employee) },
+  {
+    to: '/my-messages',
+    label: 'My messages',
+    badge: 'unread',
+    show: (a) => Boolean(a.me.employee),
+  },
+  {
+    to: '/analytics',
+    label: 'Workforce analytics',
+    show: (a) =>
+      a.can('organization.manage') || (a.can('employees.read') && a.can('attendance.read')),
+  },
+  { to: '/attendance', label: 'Attendance', permission: 'attendance.read' },
+  {
+    to: '/leave',
+    label: 'Leave',
+    show: (a) => a.can('leave.read') || Boolean(a.me.employee?.isManager),
+  },
+  {
+    to: '/attendance/team',
+    label: 'My team',
+    show: (a) => Boolean(a.me.employee?.isManager) && !a.can('attendance.read'),
+  },
+  { to: '/payroll', label: 'Payroll', permission: 'payroll.read' },
+  {
+    to: '/messages',
+    label: 'Send messages',
+    show: (a) =>
+      a.can('employees.manage') || a.can('payroll.manage') || Boolean(a.me.employee?.isManager),
+  },
+  { to: '/employees', label: 'Employees', permission: 'employees.read' },
+  { to: '/holidays', label: 'Holidays', permission: 'holidays.read' },
+  { to: '/company-setup', label: 'Company setup', permission: 'org_structure.manage' },
+  { to: '/branches', label: 'Branches', permission: 'branches.read' },
+  { to: '/users', label: 'Users & roles', permission: 'users.read' },
+  { to: '/audit', label: 'Audit log', permission: 'audit.read' },
+];
+
+export function MgtLayout() {
+  const auth = useAuth();
+  const { me } = auth;
+  const unread = useUnreadMessages(Boolean(me.employee));
+
+  const links = MGT_NAV.filter(
+    (item) => (!item.permission || auth.can(item.permission)) && (!item.show || item.show(auth)),
+  );
+
+  return (
+    <div className="min-h-screen md:grid md:grid-cols-[240px_1fr]">
+      <aside className="border-b border-slate-200 bg-white md:min-h-screen md:border-r md:border-b-0">
+        <div className="flex items-center gap-2 px-5 py-4">
+          <img src="/favicon.svg" alt="" className="h-7 w-7" />
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5">
+              <span className="text-sm font-bold text-brand-900">Suntek-Mgt</span>
+              <span className="rounded bg-brand-50 px-1 py-0.5 text-[10px] font-semibold text-brand-700">
+                HRMS
+              </span>
+            </div>
+            <p className="truncate text-xs text-slate-500">{me.organization.name}</p>
+          </div>
+        </div>
+        <nav aria-label="Workforce" className="flex gap-1 overflow-x-auto px-3 pb-3 md:flex-col">
+          {links.map((item) => (
+            <NavLink
+              key={`${item.to}-${item.label}`}
+              to={item.to}
+              end={item.end}
+              className={({ isActive }) =>
+                `whitespace-nowrap rounded-lg px-3 py-2 text-sm ${
+                  isActive
+                    ? 'bg-brand-50 font-medium text-brand-700'
+                    : 'text-slate-600 hover:bg-slate-100'
+                }`
+              }
+            >
+              {item.label}
+              {item.badge === 'unread' && unread > 0 && (
+                <span className="ml-2 rounded-full bg-brand-700 px-1.5 text-xs text-white">
+                  {unread}
+                </span>
+              )}
+            </NavLink>
+          ))}
+        </nav>
+      </aside>
+
+      <div className="min-w-0">
+        <header className="flex items-center justify-end gap-3 border-b border-slate-200 bg-white px-6 py-3">
+          <span className="hidden rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800 sm:inline">
+            Suntek-Mgt · Workforce Operations
+          </span>
+          <div className="text-right">
+            <p className="text-sm font-medium text-slate-800">{me.user.fullName}</p>
+            <p className="text-xs text-slate-500">{me.roles.map((r) => r.label).join(', ')}</p>
+          </div>
+          {me.user.email && (
+            <NavLink to="/account/password" className="text-xs text-slate-500 hover:text-slate-800">
+              Password
+            </NavLink>
+          )}
+          <Button variant="secondary" size="sm" onClick={() => auth.logout()}>
+            Sign out
+          </Button>
+        </header>
+        <main className="mx-auto max-w-6xl px-6 py-8">
+          <Outlet />
+        </main>
+      </div>
+    </div>
+  );
+}

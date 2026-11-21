@@ -3,6 +3,7 @@ node_modules/
 
 # Builds and coverage
 dist/
+dist-*/
 build/
 coverage/
 playwright-report/

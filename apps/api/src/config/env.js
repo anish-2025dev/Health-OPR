@@ -27,18 +27,28 @@ function databaseUrlIssue(url) {
   return null;
 }
 
+const optionalUrl = z.preprocess(
+  (val) => (typeof val === 'string' && val.trim() === '' ? undefined : val),
+  z.string().url().optional(),
+);
+
 const schema = z
   .object({
     APP_ENV: z.enum(['development', 'test', 'staging', 'production']).default('development'),
+    PRODUCT_MODE: z.enum(['all', 'mgt', 'ops', 'platform']).default('all'),
     APP_SECRET_KEY: z.string().default(''),
     // Render (and most PaaS hosts) inject PORT; API_PORT is the local-development name.
     PORT: z.coerce.number().int().positive().optional(),
     API_PORT: z.coerce.number().int().positive().default(4000),
     FRONTEND_URL: z.string().url().default('http://localhost:5173'),
+    // Independent frontend URLs for decoupled multi-surface architecture
+    MGT_FRONTEND_URL: optionalUrl,
+    OPS_FRONTEND_URL: optionalUrl,
+    PLATFORM_CONSOLE_URL: optionalUrl,
     // Patient website (separate deployment). Used for CORS and for links sent to patients.
     // Optional: when unset, development uses localhost:5174 and deployed environments fall back to
     // FRONTEND_URL (the staff site also serves the tracking page) until the patient site is set up.
-    PATIENT_SITE_URL: z.string().url().optional(),
+    PATIENT_SITE_URL: optionalUrl,
     PATIENT_SESSION_DAYS: z.coerce.number().int().min(1).max(180).default(30),
     ACCESS_TOKEN_EXPIRE_MINUTES: z.coerce.number().int().positive().default(15),
     REFRESH_TOKEN_EXPIRE_DAYS: z.coerce.number().int().positive().default(14),
@@ -112,6 +122,30 @@ const schema = z
         code: 'custom',
         path: ['FRONTEND_URL'],
         message: 'must be the https:// URL of the deployed web app in staging/production',
+      });
+    }
+    if (env.MGT_FRONTEND_URL && !env.MGT_FRONTEND_URL.startsWith('https://')) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['MGT_FRONTEND_URL'],
+        message:
+          'must be the https:// URL of the deployed Suntek-Mgt web app in staging/production',
+      });
+    }
+    if (env.OPS_FRONTEND_URL && !env.OPS_FRONTEND_URL.startsWith('https://')) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['OPS_FRONTEND_URL'],
+        message:
+          'must be the https:// URL of the deployed Suntek-ops web app in staging/production',
+      });
+    }
+    if (env.PLATFORM_CONSOLE_URL && !env.PLATFORM_CONSOLE_URL.startsWith('https://')) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['PLATFORM_CONSOLE_URL'],
+        message:
+          'must be the https:// URL of the deployed Platform Console web app in staging/production',
       });
     }
     if (env.PATIENT_SITE_URL && !env.PATIENT_SITE_URL.startsWith('https://')) {

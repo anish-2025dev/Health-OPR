@@ -5,12 +5,22 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:mgt": "vite --mode mgt",
+    "dev:ops": "vite --mode ops",
+    "dev:patient": "vite --mode patient",
+    "dev:platform": "vite --mode platform",
     "build": "vite build",
+    "build:mgt": "vite build --mode mgt --outDir dist-mgt",
+    "build:ops": "vite build --mode ops --outDir dist-ops",
+    "build:patient": "vite build --mode patient --outDir dist-patient",
+    "build:platform": "vite build --mode platform --outDir dist-platform",
+    "build:all": "npm run build:mgt && npm run build:ops && npm run build:patient && npm run build:platform",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "dev:patient": "VITE_APP_SURFACE=patient vite",
-    "build:patient": "VITE_APP_SURFACE=patient vite build --outDir dist-patient"
+    "test:mgt": "vitest run src/features/employees/csv.test.js src/features/employees/Employees.test.jsx src/features/leave/Leave.test.jsx src/features/attendance/Attendance.test.jsx",
+    "test:ops": "vitest run src/app/Surfaces.test.jsx",
+    "test:platform": "vitest run src/app/App.test.jsx"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.5",

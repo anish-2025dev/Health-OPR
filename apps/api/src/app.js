@@ -30,18 +30,34 @@ export function createApp({ config, logger, checks, db, rateLimitStore, sms, wha
       autoLogging: config.APP_ENV !== 'test',
       // Log the minimum needed for tracing. Headers, query strings and bodies may carry personal data.
       serializers: {
-        req: (req) => ({ id: req.id, method: req.method, path: req.url?.split('?')[0] }),
+        req: (req) => ({
+          id: req.id,
+          correlationId: req.correlationId,
+          method: req.method,
+          path: req.url?.split('?')[0],
+        }),
         res: (res) => ({ statusCode: res.statusCode }),
       },
     }),
   );
   app.use(helmet());
+  const allowedOrigins = [
+    config.FRONTEND_URL,
+    config.PATIENT_SITE_URL,
+    config.MGT_FRONTEND_URL,
+    config.OPS_FRONTEND_URL,
+    config.PLATFORM_CONSOLE_URL,
+  ].filter(Boolean);
+
   app.use(
     cors({
-      origin: [config.FRONTEND_URL, config.PATIENT_SITE_URL],
+      origin: allowedOrigins,
       credentials: true,
     }),
   );
+  app.get('/healthz', (req, res) => {
+    res.json({ status: 'ok' });
+  });
   app.use(
     express.json({
       limit: '1mb',

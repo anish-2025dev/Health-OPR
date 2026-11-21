@@ -199,6 +199,283 @@ services:
       - key: VITE_APP_SURFACE
         value: patient
 
+  # ==============================================================================================
+  # DECOUPLED SUNTEK ECOSYSTEM INDEPENDENT PRODUCTION SERVICES (PHASE 8 TARGET TOPOLOGY)
+  # ==============================================================================================
+
+  # ---------------------------------------------------------------- Suntek-Mgt API (HRMS Express Service)
+  - type: web
+    name: suntek-mgt-api
+    runtime: node
+    region: singapore
+    plan: starter
+    buildCommand: npm ci && npm run db:migrate && npm run bootstrap --workspace apps/api
+    startCommand: npm run start --workspace apps/api
+    healthCheckPath: /api/v1/health
+    autoDeployTrigger: checksPass
+    buildFilter:
+      paths:
+        - apps/api/**
+        - package.json
+        - package-lock.json
+        - render.yaml
+    envVars:
+      - key: NODE_VERSION
+        value: '22'
+      - key: APP_ENV
+        value: production
+      - key: PRODUCT_MODE
+        value: mgt
+      - key: LOG_LEVEL
+        value: info
+      - key: APP_SECRET_KEY
+        generateValue: true
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: '15'
+      - key: REFRESH_TOKEN_EXPIRE_DAYS
+        value: '14'
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_MIGRATION_URL
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: MGT_FRONTEND_URL
+        sync: false
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: healthos-redis
+          property: connectionString
+      - key: SMS_PROVIDER
+        value: msg91
+      - key: MSG91_AUTH_KEY
+        sync: false
+      - key: MSG91_OTP_TEMPLATE_ID
+        sync: false
+      - key: MSG91_OTP_VARIABLE
+        value: otp
+      - key: MSG91_MESSAGE_ALERT_TEMPLATE_ID
+        sync: false
+      - key: MSG91_MESSAGE_ALERT_VARIABLES
+        value: org,link
+      - key: BOOTSTRAP_PLATFORM_ADMIN_EMAIL
+        sync: false
+      - key: BOOTSTRAP_PLATFORM_ADMIN_PASSWORD
+        sync: false
+
+  # ---------------------------------------------------------------- Suntek-Mgt Web (HRMS Static Site)
+  - type: web
+    name: suntek-mgt-web
+    runtime: static
+    buildCommand: npm ci && npm run build:mgt --workspace apps/web
+    staticPublishPath: apps/web/dist-mgt
+    autoDeployTrigger: checksPass
+    buildFilter:
+      paths:
+        - apps/web/**
+        - package.json
+        - package-lock.json
+        - render.yaml
+    routes:
+      - type: rewrite
+        source: /api/*
+        destination: https://suntek-mgt-api.onrender.com/api/*
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    headers:
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin
+      - path: /*
+        name: Permissions-Policy
+        value: camera=(), microphone=(), geolocation=(self)
+      - path: /*
+        name: Content-Security-Policy
+        value: "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+    envVars:
+      - key: NODE_VERSION
+        value: '22'
+      - key: VITE_API_BASE_URL
+        value: /api/v1
+      - key: VITE_APP_SURFACE
+        value: mgt
+
+  # ---------------------------------------------------------------- Suntek-ops API (Hospital Ops Express Service)
+  - type: web
+    name: suntek-ops-api
+    runtime: node
+    region: singapore
+    plan: starter
+    buildCommand: npm ci && npm run db:migrate && npm run bootstrap --workspace apps/api
+    startCommand: npm run start --workspace apps/api
+    healthCheckPath: /api/v1/health
+    autoDeployTrigger: checksPass
+    buildFilter:
+      paths:
+        - apps/api/**
+        - package.json
+        - package-lock.json
+        - render.yaml
+    envVars:
+      - key: NODE_VERSION
+        value: '22'
+      - key: APP_ENV
+        value: production
+      - key: PRODUCT_MODE
+        value: ops
+      - key: LOG_LEVEL
+        value: info
+      - key: APP_SECRET_KEY
+        generateValue: true
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: '15'
+      - key: REFRESH_TOKEN_EXPIRE_DAYS
+        value: '14'
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_MIGRATION_URL
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: OPS_FRONTEND_URL
+        sync: false
+      - key: PATIENT_SITE_URL
+        sync: false
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: healthos-redis
+          property: connectionString
+      - key: WHATSAPP_PROVIDER
+        sync: false
+      - key: WHATSAPP_ACCESS_TOKEN
+        sync: false
+      - key: WHATSAPP_APP_SECRET
+        sync: false
+      - key: WHATSAPP_VERIFY_TOKEN
+        generateValue: true
+      - key: WHATSAPP_GRAPH_API_VERSION
+        sync: false
+      - key: WHATSAPP_APPOINTMENT_TEMPLATE
+        sync: false
+      - key: MSG91_AUTH_KEY
+        sync: false
+      - key: MSG91_APPOINTMENT_TEMPLATE_ID
+        sync: false
+      - key: MSG91_APPOINTMENT_VARIABLES
+        value: token,date,time,link
+      - key: BOOTSTRAP_PLATFORM_ADMIN_EMAIL
+        sync: false
+      - key: BOOTSTRAP_PLATFORM_ADMIN_PASSWORD
+        sync: false
+
+  # ---------------------------------------------------------------- Suntek-ops Web (Hospital Admin Static Site)
+  - type: web
+    name: suntek-ops-web
+    runtime: static
+    buildCommand: npm ci && npm run build:ops --workspace apps/web
+    staticPublishPath: apps/web/dist-ops
+    autoDeployTrigger: checksPass
+    buildFilter:
+      paths:
+        - apps/web/**
+        - package.json
+        - package-lock.json
+        - render.yaml
+    routes:
+      - type: rewrite
+        source: /api/*
+        destination: https://suntek-ops-api.onrender.com/api/*
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    headers:
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin
+      - path: /*
+        name: Permissions-Policy
+        value: camera=(), microphone=(), geolocation=(self)
+      - path: /*
+        name: Content-Security-Policy
+        value: "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+    envVars:
+      - key: NODE_VERSION
+        value: '22'
+      - key: VITE_API_BASE_URL
+        value: /api/v1
+      - key: VITE_APP_SURFACE
+        value: ops
+      - key: VITE_PATIENT_SITE_URL
+        sync: false
+
+  # ---------------------------------------------------------------- Platform Console Web (Operator Plane Static Site)
+  - type: web
+    name: suntek-platform-web
+    runtime: static
+    buildCommand: npm ci && npm run build:platform --workspace apps/web
+    staticPublishPath: apps/web/dist-platform
+    autoDeployTrigger: checksPass
+    buildFilter:
+      paths:
+        - apps/web/**
+        - package.json
+        - package-lock.json
+        - render.yaml
+    routes:
+      - type: rewrite
+        source: /api/*
+        destination: https://suntek-ops-api.onrender.com/api/*
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    headers:
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin
+      - path: /*
+        name: Permissions-Policy
+        value: camera=(), microphone=(), geolocation=()
+      - path: /*
+        name: Content-Security-Policy
+        value: "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+    envVars:
+      - key: NODE_VERSION
+        value: '22'
+      - key: VITE_API_BASE_URL
+        value: /api/v1
+      - key: VITE_APP_SURFACE
+        value: platform
+
   # ---------------------------------------------------------------- Redis-compatible cache / queue
   - type: keyvalue
     name: healthos-redis

@@ -87,4 +87,17 @@ describe('PATIENT_SITE_URL', () => {
     expect(config.PATIENT_SITE_URL).toBe('https://healthos-web.onrender.com');
     expect(config.PATIENT_SITE_URL_SET).toBe(false);
   });
+
+  it('handles empty strings for decoupled URLs without failing validation', () => {
+    const config = loadConfig({
+      MGT_FRONTEND_URL: '',
+      OPS_FRONTEND_URL: '   ',
+      PLATFORM_CONSOLE_URL: '',
+      PATIENT_SITE_URL: '',
+    });
+    expect(config.MGT_FRONTEND_URL).toBeUndefined();
+    expect(config.OPS_FRONTEND_URL).toBeUndefined();
+    expect(config.PLATFORM_CONSOLE_URL).toBeUndefined();
+    expect(config.PATIENT_SITE_URL_SET).toBe(false);
+  });
 });

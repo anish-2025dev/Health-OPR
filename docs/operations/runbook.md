@@ -103,15 +103,54 @@ Rotate immediately if a secret may have leaked, and at least yearly otherwise.
 - **Duplicate patients:** Patient privacy → Duplicate review. Merging keeps one record and marks the
   other as merged; nothing is deleted.
 
+## Zero-downtime deployment sequence (Independent Services)
+
+For the decoupled production topology (`suntek-mgt-*` and `suntek-ops-*`), services deploy independently without cross-domain locking:
+
+1. **Pre-Deployment Database Migration:**
+   - Database migrations run automatically during the API build phase via `npm run db:migrate`.
+   - All migrations are strictly non-breaking (e.g. Migration 17 uses `ON DELETE SET NULL`, additive columns with defaults).
+   - If a migration fails, Render stops the deployment and the previous running version remains live.
+
+2. **Backend API Deployment (`suntek-mgt-api` & `suntek-ops-api`):**
+   - Render starts new instances and tests the health check path (`/api/v1/health`).
+   - Graceful shutdown handles existing requests: in-flight requests and background processors drain up to 10 seconds before terminating (`SIGTERM`).
+   - Old instances are decommissioned only after new instances return 200 OK on health checks.
+
+3. **Frontend CDN Deployment (`suntek-mgt-web`, `suntek-ops-web`, `suntek-patient-web`, `suntek-platform-web`):**
+   - Static builds are published to Render's CDN. Cache-Control headers ensure asset immutability (`/assets/*` with 1-year cache) while `index.html` is never cached.
+   - Traffic transitions immediately with zero downtime.
+
+## Health Probes Reference
+
+| Probe Endpoint         | Expected Status | Target Component                   | Failure Action                                 |
+| ---------------------- | --------------- | ---------------------------------- | ---------------------------------------------- |
+| `/healthz`             | 200 OK          | Process liveness                   | Restart container / pod                        |
+| `/api/v1/health`       | 200 OK          | API router responsiveness          | Restart container / pod                        |
+| `/api/v1/health/live`  | 200 OK          | K8s / cloud orchestrator probe     | Restart container / pod                        |
+| `/api/v1/health/ready` | 200 OK          | PostgreSQL 17 & Redis connectivity | Alert oncall; traffic redirected if multi-node |
+
+## Incident Triage & Correlation Tracking
+
+- **Distributed Tracing:** Every incoming request receives an `X-Correlation-ID` and `X-Request-ID`. Both IDs are returned in response headers and logged with every structured Pino log entry.
+- **Client Error Envelope:** When an unexpected error occurs, the client receives `{ error: { code, message, product, correlationId, requestId } }`. Use the `correlationId` to grep logs in Render:
+  ```bash
+  # Search by correlation ID in Render logs
+  "correlationId":"<id>"
+  ```
+- **Data Redaction:** Passwords, OTP tokens, refresh cookies, bank details, device fingerprints, and government IDs (Aadhaar, PAN, UAN) are scrubbed before reaching logs.
+
 ## Rolling back
 
-- **Code:** Render → service → Deploys → pick the last good deploy → **Rollback**.
-- **Database:** migrations only move forward in production. If a new migration must be undone, write a
-  new migration that reverses it, test it locally (`make migrate`, `make rollback`), and deploy. For
-  data damage, use the restore steps above.
+- **Frontend Code:** In Render → service → Deploys → pick the last good deploy → **Rollback**. The CDN immediately begins serving the previous static bundle.
+- **API Code:** In Render → `suntek-mgt-api` or `suntek-ops-api` → Deploys → **Rollback**.
+- **Database:**
+  - Standard rollback: `npm run db:rollback --workspace apps/api` (runs Knex rollback for down migration).
+  - Forward-fix policy: In live production, preferred policy is writing a forward migration fixing the issue.
+  - Disaster recovery: If database corruption occurred, use Neon point-in-time restore to restore to a timestamp before the incident.
 - **Approved payroll** can't be changed by design. Corrections go into the next run as adjustments.
 
-## Useful commands (Render Shell on healthos-api)
+## Useful commands (Render Shell on healthos-api or suntek-*-api)
 
 ```bash
 npm run org:create --workspace apps/api -- --name "…" --slug … --owner-email … --owner-name "…"
@@ -119,4 +158,8 @@ npm run org:create --workspace apps/api -- --name "…" --slug … --owner-email
 
 ```bash
 npm run db:migrate
+```
+
+```bash
+npm run db:rollback
 ```

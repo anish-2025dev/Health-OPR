@@ -226,6 +226,61 @@ automatically. Then:
 - update the WhatsApp webhook URL in Meta, if used;
 - redeploy both websites and **reprint the clinic QR codes** (they contain the patient website address).
 
+## Part 8: Decoupled Multi-Service Production Deployment (Suntek Ecosystem)
+
+The Suntek Ecosystem supports two deployment topologies:
+
+### Model A: Unified Pilot Deployment (Standard)
+
+- **Services:** `healthos-api` (Express backend, `PRODUCT_MODE=all`), `healthos-web` (React staff app), `healthos-patient` (React patient portal), `healthos-redis` (Redis).
+- **Use Case:** Single-organization pilots, proof-of-concept clinics, demo environments, cost-optimized hosting (~US$7/month).
+- **Blueprint:** `render.yaml` (Services 1–4).
+
+### Model B: Decoupled Multi-Service Production Deployment (High Scale)
+
+- **Services:**
+  1. `suntek-mgt-api`: Node.js web service running strictly HRMS, attendance, payroll, loans, claims, and workforce operations (`PRODUCT_MODE=mgt`).
+  2. `suntek-mgt-web`: Vite static site compiled with `npm run build:mgt` (`VITE_APP_SURFACE=mgt`), published from `apps/web/dist-mgt`.
+  3. `suntek-ops-api`: Node.js web service running clinical encounters, doctors, appointments, queue, patient accounts, and messaging (`PRODUCT_MODE=ops`).
+  4. `suntek-ops-web`: Vite static site compiled with `npm run build:ops` (`VITE_APP_SURFACE=ops`), published from `apps/web/dist-ops`.
+  5. `suntek-patient-web`: Vite static site compiled with `npm run build:patient` (`VITE_APP_SURFACE=patient`), published from `apps/web/dist-patient`.
+  6. `suntek-platform-web`: Vite static site compiled with `npm run build:platform` (`VITE_APP_SURFACE=platform`), published from `apps/web/dist-platform`.
+  7. `healthos-redis`: Shared Redis key-value instance for rate limiting, distributed lockouts, and OTP caching.
+- **Use Case:** Production hospital networks, multi-tenant enterprises, independent engineering releases, horizontal autoscaling.
+- **Blueprint:** Defined in `render.yaml` (services 5–9) and dedicated standalone `render.decoupled.yaml`.
+
+### Architecture & Routing Diagram
+
+```
+                              ┌─────────────────────────────────────────────────────────┐
+                              │                 Render Production Edge                  │
+                              │                                                         │
+  Workforce / HRMS Users ───▶ │  suntek-mgt-web (dist-mgt) ──/api/*──▶ suntek-mgt-api   │
+                              │                                                         │
+  Hospital / Clinic Staff ──▶ │  suntek-ops-web (dist-ops) ──/api/*──▶ suntek-ops-api   │
+                              │                                            │            │
+  Patients & Public ────────▶ │  suntek-patient-web (dist-patient) ────────┘            │
+                              │                                                         │
+  Platform Operators ───────▶ │  suntek-platform-web (dist-platform) ────┘             │
+                              │                                                         │
+                              └──────────────────────────┬──────────────────────────────┘
+                                                         │ TLS 1.3
+                                                         ▼
+                                                Neon PostgreSQL 17
+                                            (Isolated Schemas / RLS)
+```
+
+### Health Check Probes for Orchestration & Uptime Monitoring
+
+| Path                   | Type      | Description                                                  | HTTP Success |
+| ---------------------- | --------- | ------------------------------------------------------------ | ------------ |
+| `/healthz`             | Liveness  | Process is running (load balancers & edge proxies)           | 200 OK       |
+| `/api/v1/health`       | Liveness  | API router is responding                                     | 200 OK       |
+| `/api/v1/health/live`  | Liveness  | Kubernetes / Cloud-native liveness probe                     | 200 OK       |
+| `/api/v1/health/ready` | Readiness | Full dependency verification (PostgreSQL 17 + Redis cluster) | 200 OK       |
+
+---
+
 ## Updating the system
 
 - Push to `main`. GitHub CI runs lint, tests, migrations and a secret scan. Render deploys **only

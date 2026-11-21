@@ -146,6 +146,8 @@ function present(e, auth) {
     emergencyContact: full
       ? { name: e.emergency_contact_name, phone: e.emergency_contact_phone }
       : undefined,
+    emergencyContactName: full ? e.emergency_contact_name : undefined,
+    emergencyContactPhone: full ? e.emergency_contact_phone : undefined,
     createdAt: e.created_at,
     updatedAt: e.updated_at,
   };

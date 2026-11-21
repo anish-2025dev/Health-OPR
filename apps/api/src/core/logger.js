@@ -19,6 +19,7 @@ export const REDACT_PATHS = [
   '*.pan',
   '*.aadhaar',
   '*.uan',
+  '*.deviceFingerprint',
 ];
 
 export function createLogger(config) {

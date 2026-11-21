@@ -251,5 +251,171 @@ export function analyticsRouter({ db }) {
     res.json(out);
   });
 
+  // Owner Dashboard & Organization Analytics (§11)
+  router.get('/owner', async (req, res) => {
+    if (!req.auth.permissions.has(P.ORGANIZATION_MANAGE)) throw forbidden();
+    const { month } = validate(
+      z.object({ month: MONTH.default(new Date().toISOString().slice(0, 7)) }),
+      req.query,
+    );
+    const from = `${month}-01`;
+    const to = monthEnd(month);
+    const org = req.auth.organizationId;
+    const today = new Date().toISOString().slice(0, 10);
+
+    const out = await withTenant(db, org, async (trx) => {
+      // 11.1 Employee Statistics
+      const employees = await trx('employees as e')
+        .leftJoin('departments as d', 'd.id', 'e.department_id')
+        .where('e.organization_id', org)
+        .select(
+          'e.employment_status',
+          'd.name as department_name',
+          'e.joining_date',
+          'e.exit_date',
+        );
+
+      let activeCount = 0;
+      let inactiveCount = 0;
+      let newRegistrationsMonth = 0;
+      let exitsMonth = 0;
+      const deptDist = {};
+
+      for (const e of employees) {
+        if (e.employment_status === 'active' || e.employment_status === 'on_notice')
+          activeCount += 1;
+        else inactiveCount += 1;
+
+        if (e.joining_date >= from && e.joining_date <= to) newRegistrationsMonth += 1;
+        if (e.exit_date && e.exit_date >= from && e.exit_date <= to) exitsMonth += 1;
+
+        const dept = e.department_name || 'Unassigned';
+        deptDist[dept] = (deptDist[dept] || 0) + 1;
+      }
+
+      // 11.2 Attendance Analytics
+      const attendanceSummary = await trx('attendance_days')
+        .where({ organization_id: org })
+        .whereBetween('work_date', [from, to])
+        .first(
+          trx.raw("count(*) FILTER (WHERE status = 'present')::int AS present"),
+          trx.raw("count(*) FILTER (WHERE status = 'absent')::int AS absent"),
+          trx.raw('count(*) FILTER (WHERE is_late)::int AS late'),
+          trx.raw('coalesce(sum(overtime_minutes), 0)::int AS overtime_minutes'),
+        );
+
+      // 11.3 Task Analytics
+      const tasks = await trx('tasks')
+        .where({ organization_id: org, is_archived: false })
+        .select('status', 'deadline', 'priority');
+      let tasksTotal = tasks.length;
+      let tasksCompleted = 0;
+      let tasksPending = 0;
+      let tasksOverdue = 0;
+      for (const t of tasks) {
+        if (t.status === 'completed') tasksCompleted += 1;
+        else {
+          tasksPending += 1;
+          if (t.deadline && String(t.deadline).slice(0, 10) < today && t.status !== 'cancelled') {
+            tasksOverdue += 1;
+          }
+        }
+      }
+
+      // 11.4 Leave Analytics
+      const leaves = await trx('leave_requests')
+        .where('organization_id', org)
+        .select('status', 'days');
+      let totalLeaves = leaves.length;
+      let approvedLeaves = 0;
+      let rejectedLeaves = 0;
+      let pendingLeaves = 0;
+      for (const l of leaves) {
+        if (l.status === 'approved') approvedLeaves += 1;
+        else if (l.status === 'rejected') rejectedLeaves += 1;
+        else if (l.status === 'pending') pendingLeaves += 1;
+      }
+
+      // 11.5 Financial Analytics
+      const claims = await trx('employee_claims')
+        .where('organization_id', org)
+        .select('claim_type', 'status', 'approved_amount', 'repaid_amount', 'requested_amount');
+      let totalClaims = claims.length;
+      let approvedLoansCount = 0;
+      let totalApprovedLoanAmount = 0n;
+      let totalOutstandingLoanAmount = 0n;
+      let pendingClaimsCount = 0;
+      for (const c of claims) {
+        if (c.status === 'pending') pendingClaimsCount += 1;
+        if (c.claim_type === 'loan' && c.status === 'approved') {
+          approvedLoansCount += 1;
+          const app = BigInt(c.approved_amount || 0);
+          const rep = BigInt(c.repaid_amount || 0);
+          totalApprovedLoanAmount += app;
+          totalOutstandingLoanAmount += app > rep ? app - rep : 0n;
+        }
+      }
+
+      // 11.6 Payroll Analytics
+      const payrollRuns = await trx('payroll_runs')
+        .where({ organization_id: org, period_month: month })
+        .select('id', 'status', 'gross_pay_paise', 'net_pay_paise', 'total_deductions_paise');
+
+      let totalGross = 0n;
+      let totalNet = 0n;
+      let totalDeductions = 0n;
+      for (const r of payrollRuns) {
+        totalGross += BigInt(r.gross_pay_paise || 0);
+        totalNet += BigInt(r.net_pay_paise || 0);
+        totalDeductions += BigInt(r.total_deductions_paise || 0);
+      }
+
+      return {
+        month,
+        employeeStats: {
+          total: employees.length,
+          active: activeCount,
+          inactive: inactiveCount,
+          newRegistrationsMonth,
+          exitsMonth,
+          departmentDistribution: deptDist,
+        },
+        attendanceAnalytics: {
+          presentDays: n(attendanceSummary?.present),
+          absentDays: n(attendanceSummary?.absent),
+          lateDays: n(attendanceSummary?.late),
+          overtimeHours: Math.round(n(attendanceSummary?.overtime_minutes) / 6) / 10,
+        },
+        taskAnalytics: {
+          total: tasksTotal,
+          completed: tasksCompleted,
+          pending: tasksPending,
+          overdue: tasksOverdue,
+        },
+        leaveAnalytics: {
+          total: totalLeaves,
+          approved: approvedLeaves,
+          rejected: rejectedLeaves,
+          pending: pendingLeaves,
+        },
+        financialAnalytics: {
+          totalClaims,
+          pendingClaims: pendingClaimsCount,
+          approvedLoansCount,
+          totalApprovedLoanAmount: totalApprovedLoanAmount.toString(),
+          totalOutstandingLoanAmount: totalOutstandingLoanAmount.toString(),
+        },
+        payrollAnalytics: {
+          runsCount: payrollRuns.length,
+          totalGrossPaise: totalGross.toString(),
+          totalNetPaise: totalNet.toString(),
+          totalDeductionsPaise: totalDeductions.toString(),
+        },
+      };
+    });
+
+    res.json(out);
+  });
+
   return router;
 }

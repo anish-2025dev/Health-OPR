@@ -28,6 +28,8 @@ const employeeOtpVerifySchema = z.object({
     .string()
     .trim()
     .regex(/^\d{6}$/, 'Enter the 6-digit code'),
+  deviceFingerprint: z.string().trim().max(500).optional(),
+  deviceLabel: z.string().trim().max(200).optional(),
 });
 
 const changePasswordSchema = z.object({

@@ -9,6 +9,10 @@ import { requirePermission } from '../staff-access/permissions.js';
  * change and its audit entry are saved (or rolled back) together.
  */
 export async function recordAudit(trx, entry) {
+  const metadata = {
+    ...(entry.correlationId ? { correlationId: entry.correlationId } : {}),
+    ...(entry.metadata ?? {}),
+  };
   await trx('audit_logs').insert({
     organization_id: entry.organizationId,
     actor_user_id: entry.actorUserId ?? null,
@@ -16,7 +20,7 @@ export async function recordAudit(trx, entry) {
     entity_type: entry.entityType ?? null,
     entity_id: entry.entityId ?? null,
     reason: entry.reason ?? null,
-    metadata: entry.metadata ?? {},
+    metadata,
     ip: entry.ip ?? null,
     request_id: entry.requestId ?? null,
   });
@@ -28,6 +32,7 @@ export const auditContext = (req) => ({
   actorUserId: req.auth.userId,
   ip: req.ip ?? null,
   requestId: req.id,
+  correlationId: req.correlationId ?? req.id,
 });
 
 const listQuery = z.object({

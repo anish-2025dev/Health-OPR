@@ -8,45 +8,28 @@ import { organizationsRouter } from '../../modules/organizations/index.js';
 import { branchesRouter } from '../../modules/branches/index.js';
 import { usersRouter } from '../../modules/staff-access/users.routes.js';
 import { auditRouter } from '../../modules/audit/index.js';
-import { orgStructureRouters } from '../../modules/org-structure/index.js';
-import { employeesRouter } from '../../modules/hr-employees/index.js';
 import { createMemoryStore } from '../../core/rate-limit.js';
 import { createSmsSender } from '../../integrations/sms/index.js';
 import { createWhatsAppSender } from '../../integrations/whatsapp/index.js';
 import { createNotifier } from '../../modules/notifications/index.js';
-import {
-  createWhatsAppProcessor,
-  whatsappSettingsRouter,
-  whatsappWebhookRouter,
-} from '../../modules/whatsapp/routes.js';
+import { createWhatsAppProcessor } from '../../modules/whatsapp/routes.js';
 import { createOtpService } from '../../modules/otp/index.js';
 import { createEmployeeLogin } from '../../modules/authentication/employee-login.js';
-import { attendanceRouter, selfAttendanceRouter } from '../../modules/hr-attendance/routes.js';
-import { leaveRouter, selfLeaveRouter } from '../../modules/hr-leave/routes.js';
-import { payrollRouter, selfPayslipRouter } from '../../modules/hr-payroll/routes.js';
-import { statutoryRouter } from '../../modules/hr-statutory/routes.js';
-import { messagesRouter, selfMessagesRouter } from '../../modules/messages/index.js';
-import { analyticsRouter } from '../../modules/analytics/index.js';
-import { platformRouter } from '../../modules/platform/index.js';
-import { patientsRouter } from '../../modules/patients/routes.js';
-import { privacyRouter } from '../../modules/patients/privacy.routes.js';
-import { portalRouter } from '../../modules/patients/portal.routes.js';
-import {
-  authenticatePatient as authenticatePatientMiddleware,
-  createPatientTokens,
-  patientAccountRouter,
-  patientAuthRouter,
-} from '../../modules/patient-accounts/index.js';
-import {
-  appointmentsRouter,
-  doctorsRouter,
-  queueRouter,
-  trackingRouter,
-} from '../../modules/clinic/routes.js';
+import { createMgtRouter } from '../../modules/mgt.routes.js';
+import { createOpsRouter } from '../../modules/ops.routes.js';
+import { createPlatformDomainRouter } from '../../modules/platform.routes.js';
 
 /**
- * Versioned API surface mounted at /api/v1. Each module exposes a router that is mounted here.
- * Every module except /health and /auth requires authentication.
+ * Versioned API surface mounted at /api/v1.
+ *
+ * Implements decoupled Suntek Ecosystem domain routers:
+ * - /api/v1/mgt/*: Suntek-Mgt (HRMS & Workforce Operations)
+ * - /api/v1/ops/*: Suntek-ops (Hospital Management & Operations)
+ * - /api/v1/platform/*: Platform Console (Operator Control Plane)
+ *
+ * Also maintains complete backward compatibility by mounting domain routers
+ * at root /api/v1/* so existing mobile clients, web applications, and tests
+ * experience zero disruption.
  */
 export function apiV1Router({ app, config, checks, db, rateLimitStore, sms, whatsapp, logger }) {
   const router = Router();
@@ -77,6 +60,7 @@ export function apiV1Router({ app, config, checks, db, rateLimitStore, sms, what
   }
   const employeeLogin = createEmployeeLogin({ db, otp, authService });
 
+  // 1. Shared Authentication & Tenancy Foundation
   router.use(
     '/auth',
     authRouter({
@@ -92,58 +76,39 @@ export function apiV1Router({ app, config, checks, db, rateLimitStore, sms, what
   router.use('/users', authenticate, usersRouter({ db }));
   router.use('/audit-logs', authenticate, auditRouter({ db }));
 
-  const structure = orgStructureRouters({ db });
-  router.use('/departments', authenticate, structure.departments);
-  router.use('/designations', authenticate, structure.designations);
-  router.use('/shifts', authenticate, structure.shifts);
-  router.use('/holidays', authenticate, structure.holidays);
-  router.use('/hr/employees', authenticate, employeesRouter({ db }));
-  router.use('/attendance', authenticate, attendanceRouter({ db }));
-  router.use('/me/leave', authenticate, selfLeaveRouter({ db }));
-  router.use('/me/payslips', authenticate, selfPayslipRouter({ db }));
-  router.use('/me/messages', authenticate, selfMessagesRouter({ db }));
-  router.use('/me', authenticate, selfAttendanceRouter({ db, otp }));
-  router.use('/leave', authenticate, leaveRouter({ db }));
-  router.use('/messages', authenticate, messagesRouter({ db, config, sms: smsSender, logger }));
-  router.use('/payroll/statutory', authenticate, statutoryRouter({ db }));
-  router.use('/payroll', authenticate, payrollRouter({ db }));
-  router.use('/patients', authenticate, patientsRouter({ db }));
-  router.use('/analytics', authenticate, analyticsRouter({ db }));
-  router.use('/privacy', authenticate, privacyRouter({ db }));
-  router.use('/doctors', authenticate, doctorsRouter({ db }));
-  router.use('/appointments', authenticate, appointmentsRouter({ db, notifier }));
-  router.use('/queue', authenticate, queueRouter({ db }));
-  router.use(
-    '/webhooks/whatsapp',
-    whatsappWebhookRouter({ db, config, processor: whatsappProcessor, logger }),
-  );
-  router.use(
-    '/integrations',
-    authenticate,
-    whatsappSettingsRouter({ db, config, whatsapp: whatsappSender }),
-  );
-  // The operator's own console for onboarding hospitals (separate login; see ADR 0011).
-  router.use('/platform', platformRouter({ db, config, rateLimitStore: limiterStore }));
-  // Patient's live queue link (token, position and estimate only).
-  router.use('/public/track', trackingRouter({ db, rateLimitStore: limiterStore }));
-  // Public clinic portal (QR landing page): no staff login; uses its own phone-verified token.
-  const patientTokens = createPatientTokens(config);
-  const authenticatePatient = authenticatePatientMiddleware({ db, tokens: patientTokens });
-  router.use(
-    '/patient-auth',
-    patientAuthRouter({
+  // 2. Instantiate & Mount Decoupled Domain Routers Based on PRODUCT_MODE
+  const productMode = config.PRODUCT_MODE || 'all';
+
+  if (productMode === 'all' || productMode === 'mgt') {
+    const mgtRouter = createMgtRouter({ db, config, authenticate, smsSender, otp, logger });
+    router.use('/mgt', mgtRouter);
+    router.use(mgtRouter);
+  }
+
+  if (productMode === 'all' || productMode === 'ops') {
+    const opsRouter = createOpsRouter({
       db,
       config,
-      sms: smsSender,
-      tokens: patientTokens,
+      authenticate,
+      limiterStore,
+      whatsappProcessor,
+      whatsappSender,
+      notifier,
+      smsSender,
+      logger,
+    });
+    router.use('/ops', opsRouter);
+    router.use(opsRouter);
+  }
+
+  if (productMode === 'all' || productMode === 'platform') {
+    const platformDomainRouter = createPlatformDomainRouter({
+      db,
+      config,
       rateLimitStore: limiterStore,
-    }),
-  );
-  router.use('/patient', patientAccountRouter({ db, config, authenticate: authenticatePatient }));
-  router.use(
-    '/public/clinics',
-    portalRouter({ db, rateLimitStore: limiterStore, authenticatePatient, notifier }),
-  );
+    });
+    router.use('/platform', platformDomainRouter);
+  }
 
   return router;
 }

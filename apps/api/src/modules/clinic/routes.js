@@ -102,10 +102,17 @@ async function assertDoctorRefs(trx, org, auth, values) {
       throw new AppError(400, 'VALIDATION_ERROR', 'Unknown branch');
   }
   if (values.department_id) {
-    const d = await trx('departments')
-      .where({ organization_id: org, id: values.department_id })
-      .first('id');
-    if (!d) throw new AppError(400, 'VALIDATION_ERROR', 'Unknown department');
+    try {
+      const d = await trx('departments')
+        .where({ organization_id: org, id: values.department_id })
+        .first('id');
+      if (!d) throw new AppError(400, 'VALIDATION_ERROR', 'Unknown department');
+    } catch (err) {
+      if (err instanceof AppError) throw err;
+      // In a decoupled database where departments table does not exist, allow department_id reference
+      if (err.code === '42P01') return;
+      throw err;
+    }
   }
   if (values.user_id) {
     const u = await trx('users').where({ organization_id: org, id: values.user_id }).first('id');
