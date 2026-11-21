@@ -25,6 +25,16 @@ const decideRequestSchema = z
   .strict();
 
 function presentRequest(r) {
+  const parseJson = (val) => {
+    if (!val) return null;
+    if (typeof val === 'object') return val;
+    try {
+      return JSON.parse(val);
+    } catch {
+      return null;
+    }
+  };
+
   return {
     id: r.id,
     employee: r.employee_id
@@ -36,7 +46,7 @@ function presentRequest(r) {
           branchId: r.branch_id,
         }
       : null,
-    changes: r.changes,
+    changes: parseJson(r.changes),
     reason: r.reason,
     status: r.status,
     decidedBy: r.decided_by_user_id
@@ -47,7 +57,7 @@ function presentRequest(r) {
       : null,
     decidedAt: r.decided_at,
     decisionComment: r.decision_comment,
-    appliedChanges: r.applied_changes,
+    appliedChanges: parseJson(r.applied_changes),
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   };
@@ -158,18 +168,19 @@ export function hrProfileRequestsRouter({ db }) {
           emergencyContactName: 'emergency_contact_name',
           emergencyContactPhone: 'emergency_contact_phone',
         };
+        const changesObj =
+          typeof r.changes === 'string' ? JSON.parse(r.changes) : (r.changes ?? {});
         const employeePatch = {};
         for (const [key, col] of Object.entries(allowedColumns)) {
-          if (r.changes[key] !== undefined) {
-            employeePatch[col] = r.changes[key];
+          if (changesObj[key] !== undefined) {
+            employeePatch[col] = changesObj[key];
           }
         }
         if (Object.keys(employeePatch).length > 0) {
-          employeePatch.updated_at = trx.fn.now();
+          patch.applied_changes = JSON.stringify(employeePatch);
           await trx('employees')
             .where({ organization_id: orgId, id: r.employee_id })
-            .update(employeePatch);
-          patch.applied_changes = employeePatch;
+            .update({ ...employeePatch, updated_at: trx.fn.now() });
         }
       }
 
