@@ -132,7 +132,9 @@ describe('Device Restriction & Operations Integration Tests (§3.2, §7.2, §8.2
 
     // Verify employee record was updated
     const empRes = await hr.get(`/hr/employees/${worker.id}`);
-    expect(empRes.body.emergencyContactName).toBe('Updated Emergency Contact Person');
+    expect(empRes.body.emergencyContact?.name || empRes.body.emergencyContactName).toBe(
+      'Updated Emergency Contact Person',
+    );
   });
 
   it('Employee can submit and Manager/HR approve a Shift Change Request (§8.2)', async () => {
