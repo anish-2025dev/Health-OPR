@@ -12,6 +12,7 @@ function withTimeout(promise, ms) {
 
 /**
  * GET /health        liveness: the process is up (no dependency checks).
+ * GET /health/live   liveness alias for cloud/k8s orchestrators.
  * GET /health/ready  readiness: PostgreSQL and Redis are reachable.
  * Responses contain no infrastructure details (hosts, versions, error text).
  */
@@ -19,6 +20,10 @@ export function healthRouter({ checks }) {
   const router = Router();
 
   router.get('/', (req, res) => {
+    res.json({ status: 'ok' });
+  });
+
+  router.get('/live', (req, res) => {
     res.json({ status: 'ok' });
   });
 

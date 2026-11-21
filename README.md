@@ -1,15 +1,31 @@
-# HealthOS: Healthcare Operations OS
+# Suntek Ecosystem (formerly HealthOS)
 
-HealthOS is software for hospitals, clinics and nursing homes in India. One installation serves many
-hospitals ("organizations"). Each hospital's data is completely separate from every other hospital's.
+The **Suntek Ecosystem** is a multi-tenant healthcare SaaS architecture consisting of two loosely coupled, independently deployable products alongside an operator control plane:
 
-It has three parts:
+1. **Suntek-Mgt — Human Resource Management System (HRMS) & Workforce Operations Platform:**
+   Attendance (geofencing + SMS OTP), leave management, task allocation, expense claims, advance salary/loans, profile/shift requests, statutory payroll (PF/ESI/PT/TDS/Gratuity), payslip generation, and owner analytics.
+2. **Suntek-ops — Hospital Management and Outpatient Operations System:**
+   Patient registration, family accounts, DPDP consent, doctor scheduling, walk-ins & appointments, token generation, live queue board, patient live tracking link, waiting-room TV display, and WhatsApp/SMS notifications.
+3. **Platform Console — Operator Control Plane:**
+   Hospital onboarding, one-time owner invite links, organization suspension/reactivation, and cross-tenant audit trails.
 
-| Part                     | Who uses it                                                                                   | Address when running locally |
-| ------------------------ | --------------------------------------------------------------------------------------------- | ---------------------------- |
-| **Staff & employee app** | Hospital owners, admins, reception, doctors, nurses, HR, payroll, managers and every employee | http://localhost:5173        |
-| **Patient website**      | Patients and their families                                                                   | http://localhost:5174        |
-| **API**                  | Both websites, plus WhatsApp webhooks                                                         | http://localhost:4000/api/v1 |
+### Application Surfaces
+
+| Product Surface      | Primary Users                               | Development Command    | Default Local Port    | Target Build Artifact    |
+| -------------------- | ------------------------------------------- | ---------------------- | --------------------- | ------------------------ |
+| **Suntek-Mgt**       | HR, Managers, Team Leads, Employees         | `npm run dev:mgt`      | http://localhost:5173 | `apps/web/dist-mgt`      |
+| **Suntek-ops**       | Hospital Owners, Admins, Doctors, Reception | `npm run dev:ops`      | http://localhost:5173 | `apps/web/dist-ops`      |
+| **Patient Website**  | Patients and Family Members                 | `npm run dev:patient`  | http://localhost:5174 | `apps/web/dist-patient`  |
+| **Platform Console** | SaaS Operator Team                          | `npm run dev:platform` | http://localhost:5173 | `apps/web/dist-platform` |
+| **API Backend**      | All frontend surfaces & external webhooks   | `npm run dev:api`      | http://localhost:4000 | Node.js Express 5 API    |
+
+| Product Surface | Primary Users | Development Command | Default Local Port | Target Build Artifact |
+| --- | --- | --- | --- | --- |
+| **Suntek-Mgt** | HR, Managers, Team Leads, Employees | `npm run dev:mgt` | http://localhost:5173 | `apps/web/dist-mgt` |
+| **Suntek-ops** | Hospital Owners, Admins, Doctors, Reception | `npm run dev:ops` | http://localhost:5173 | `apps/web/dist-ops` |
+| **Patient Website** | Patients and Family Members | `npm run dev:patient` | http://localhost:5174 | `apps/web/dist-patient` |
+| **Platform Console**| SaaS Operator Team | `npm run dev:platform` | http://localhost:5173 | `apps/web/dist-platform` |
+| **API Backend** | All frontend surfaces & external webhooks | `npm run dev:api` | http://localhost:4000 | Node.js Express 5 API |
 
 > **Pilot build. Use made-up (synthetic) data only.** Read [Before real data](#before-real-patient-or-employee-data)
 > before entering any real patient or employee information.
@@ -185,7 +201,11 @@ Then run steps 4–6 above and open the forwarded ports **5173** and **5174**.
 | `make migrate` / `make rollback`                | Apply / undo database migrations                                                    |
 | `npm run seed:demo`                             | Create a demo hospital with fictional data (`-- --slug other` for another one)      |
 | `npm run org:create --workspace apps/api -- …`  | Create a real organization and its owner login                                      |
-| `make test`                                     | Unit tests (no database needed)                                                     |
+| `make test`                                     | Run all 187 automated unit tests across API and Web                                 |
+| `npm run test:mgt`                              | Run Suntek-Mgt domain unit tests (API + Web)                                        |
+| `npm run test:ops`                              | Run Suntek-ops domain unit tests (API + Web)                                        |
+| `npm run test:platform`                         | Run Platform Console domain unit tests (API + Web)                                  |
+| `npm run build:all`                             | Compile production bundles for all 4 surfaces (`dist-mgt`, `dist-ops`, etc.)        |
 | `npm run test:integration --workspace apps/api` | API tests against a real PostgreSQL test database (`make up` first)                 |
 | `make lint`                                     | ESLint and Prettier checks                                                          |
 | `npm run build`                                 | Production builds of both websites (`apps/web/dist` and `apps/web/dist-patient`)    |
@@ -194,7 +214,7 @@ Then run steps 4–6 above and open the forwarded ports **5173** and **5174**.
 Before committing, everything below must pass (CI runs the same):
 
 ```bash
-npm run lint && npm run format:check && npm test && npm run build
+npm run lint && npm run format:check && npm test && npm run build:all
 ```
 
 ```bash

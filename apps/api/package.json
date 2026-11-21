@@ -11,7 +11,7 @@
     "test:watch": "vitest",
     "test:mgt": "vitest run tests/attendance-calc.test.js tests/leave-calc.test.js tests/payroll-engine.test.js tests/statutory-calc.test.js tests/task-calc.test.js tests/claims-calc.test.js",
     "test:ops": "vitest run tests/clinic-calc.test.js tests/patient-matching.test.js tests/whatsapp-adapter.test.js tests/whatsapp-registration.test.js tests/database-isolation.test.js",
-    "test:platform": "vitest run tests/config.test.js tests/phone.test.js tests/security-and-vulnerability.test.js tests/decoupling-routers.test.js tests/error-handling.test.js tests/app.test.js",
+    "test:platform": "vitest run tests/config.test.js tests/phone.test.js tests/security-and-vulnerability.test.js tests/decoupling-routers.test.js tests/error-handling.test.js tests/app.test.js tests/deployment-blueprint.test.js",
     "test:integration": "vitest run --config vitest.integration.config.js",
     "db:migrate": "knex --knexfile knexfile.js migrate:latest",
     "db:rollback": "knex --knexfile knexfile.js migrate:rollback",

@@ -76,33 +76,39 @@ export function apiV1Router({ app, config, checks, db, rateLimitStore, sms, what
   router.use('/users', authenticate, usersRouter({ db }));
   router.use('/audit-logs', authenticate, auditRouter({ db }));
 
-  // 2. Instantiate Decoupled Domain Routers
-  const mgtRouter = createMgtRouter({ db, config, authenticate, smsSender, otp, logger });
-  const opsRouter = createOpsRouter({
-    db,
-    config,
-    authenticate,
-    limiterStore,
-    whatsappProcessor,
-    whatsappSender,
-    notifier,
-    smsSender,
-    logger,
-  });
-  const platformDomainRouter = createPlatformDomainRouter({
-    db,
-    config,
-    rateLimitStore: limiterStore,
-  });
+  // 2. Instantiate & Mount Decoupled Domain Routers Based on PRODUCT_MODE
+  const productMode = config.PRODUCT_MODE || 'all';
 
-  // 3. Domain Prefix Mounts (Decoupled Ecosystem)
-  router.use('/mgt', mgtRouter);
-  router.use('/ops', opsRouter);
-  router.use('/platform', platformDomainRouter);
+  if (productMode === 'all' || productMode === 'mgt') {
+    const mgtRouter = createMgtRouter({ db, config, authenticate, smsSender, otp, logger });
+    router.use('/mgt', mgtRouter);
+    router.use(mgtRouter);
+  }
 
-  // 4. Root Mounts for 100% Backward Compatibility with Existing Clients
-  router.use(mgtRouter);
-  router.use(opsRouter);
+  if (productMode === 'all' || productMode === 'ops') {
+    const opsRouter = createOpsRouter({
+      db,
+      config,
+      authenticate,
+      limiterStore,
+      whatsappProcessor,
+      whatsappSender,
+      notifier,
+      smsSender,
+      logger,
+    });
+    router.use('/ops', opsRouter);
+    router.use(opsRouter);
+  }
+
+  if (productMode === 'all' || productMode === 'platform') {
+    const platformDomainRouter = createPlatformDomainRouter({
+      db,
+      config,
+      rateLimitStore: limiterStore,
+    });
+    router.use('/platform', platformDomainRouter);
+  }
 
   return router;
 }
